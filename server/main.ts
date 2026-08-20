@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { discoverBlocks } from "./discovery.js";
 import { detectEnvironment } from "./detect.js";
 import { readBlockData } from "./local-data.js";
+import { readCloudBlockData } from "./cloud-data.js";
 import { proxyRpc } from "./rpc-proxy.js";
 
 /**
@@ -53,7 +54,21 @@ async function route(method: string, url: URL, body: string) {
   if (method !== "GET") return json({ error: "method not allowed" }, 405);
   const dataMatch = url.pathname.match(/^\/console-api\/data\/([\w.-]+)$/);
   if (dataMatch?.[1]) {
-    return json(readBlockData(projectPath, dataMatch[1]));
+    const fullId = dataMatch[1];
+    if (url.searchParams.get("env") === "cloud") {
+      const stackName = url.searchParams.get("stack");
+      const blockType = url.searchParams.get("type") ?? "";
+      if (!stackName || !/^[\w-]+$/.test(stackName)) {
+        return json({ error: "cloud data requires a valid ?stack= name" }, 400);
+      }
+      return json(
+        await readCloudBlockData(stackName, fullId, blockType, {
+          profile,
+          ...(region ? { region } : {}),
+        }),
+      );
+    }
+    return json(readBlockData(projectPath, fullId));
   }
   switch (url.pathname) {
     case "/console-api/inventory":
