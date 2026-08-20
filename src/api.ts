@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import type { EnvironmentStatus, ProjectInventory } from "../shared/types";
+import type {
+  BlockDataPage,
+  EnvironmentStatus,
+  ProjectInventory,
+  RpcResponse,
+} from "../shared/types";
 
 interface Loadable<T> {
   data: T | null;
@@ -40,4 +45,17 @@ export function useInventory(): Loadable<ProjectInventory> {
 
 export function useEnvironment(): Loadable<EnvironmentStatus> {
   return useGet<EnvironmentStatus>("/console-api/environment");
+}
+
+export function useBlockData(fullId: string): Loadable<BlockDataPage> {
+  return useGet<BlockDataPage>(`/console-api/data/${encodeURIComponent(fullId)}`);
+}
+
+export async function callRpc(method: string, params: unknown[]): Promise<RpcResponse> {
+  const response = await fetch("/console-api/rpc", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ method, params }),
+  });
+  return (await response.json()) as RpcResponse;
 }

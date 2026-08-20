@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useEnvironment, useInventory } from "./api";
+import { DataBrowser, RpcPlayground } from "./panels";
 import type { DiscoveredBlock, EnvMode } from "../shared/types";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -96,21 +97,25 @@ export function App() {
 }
 
 function BlockDetail({ block, mode }: { block: DiscoveredBlock; mode: EnvMode }) {
+  const hasLocalStore = ["data", "auth", "storage", "config"].includes(block.category);
   return (
     <>
       <h2>{block.id}</h2>
       <div className="meta">
         {block.type} · {block.fullId} · {block.file}:{block.line} · viewing: {mode}
       </div>
-      {block.methods && block.methods.length > 0 && (
+      {mode === "cloud" ? (
         <div className="card">
-          <h3>API methods ({block.methods.length})</h3>
-          <div className="methods">
-            {block.methods.map((method) => (
-              <span key={method} className="method-chip">{method}</span>
-            ))}
-          </div>
+          <h3>Cloud data</h3>
+          <div className="empty">Coming in Phase 3 — switch to Local for live panels.</div>
         </div>
+      ) : (
+        <>
+          {block.methods && block.methods.length > 0 && (
+            <RpcPlayground namespace={block.id} methods={block.methods} />
+          )}
+          {hasLocalStore && <DataBrowser fullId={block.fullId} />}
+        </>
       )}
       {block.configPreview && (
         <div className="card">
@@ -118,10 +123,6 @@ function BlockDetail({ block, mode }: { block: DiscoveredBlock; mode: EnvMode })
           <pre className="code">{block.configPreview}</pre>
         </div>
       )}
-      <div className="card">
-        <h3>Data browser</h3>
-        <div className="empty">Coming in Phase 2 (local) / Phase 3 (cloud).</div>
-      </div>
     </>
   );
 }

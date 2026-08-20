@@ -68,7 +68,40 @@ pre.code {
 .method-chip {
   font-family: var(--mono); font-size: 12px; padding: 3px 10px;
   border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2);
+  color: var(--text);
 }
+.method-chip.clickable { cursor: pointer; }
+.method-chip.clickable:hover { border-color: var(--accent); }
+.method-chip.selected { border-color: var(--accent); background: var(--bg); }
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th {
+  text-align: left; color: var(--text-dim); font-weight: 600;
+  padding: 6px 8px; border-bottom: 1px solid var(--border);
+}
+.data-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.key-cell { font-family: var(--mono); color: var(--text-dim); max-width: 320px; word-break: break-all; }
+.value-toggle {
+  display: block; width: 100%; text-align: left; background: transparent;
+  border: none; padding: 0; cursor: pointer; color: inherit;
+}
+pre.code.value { background: transparent; padding: 0; }
+pre.code.clamp {
+  max-height: 1.6em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.playground { margin-top: 14px; display: grid; gap: 10px; }
+.field-label { font-size: 12px; color: var(--text-dim); }
+.args-input {
+  width: 100%; background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; padding: 10px;
+  font-family: var(--mono); font-size: 12px; resize: vertical;
+}
+.args-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.send-button {
+  justify-self: start; padding: 7px 20px; border-radius: 8px;
+  border: 1px solid var(--accent); background: var(--accent); color: #fff;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.send-button:disabled { opacity: 0.6; cursor: wait; }
 .empty { color: var(--text-dim); padding: 40px; text-align: center; }
 .error-banner {
   background: #3a2430; border: 1px solid #7a4050; color: #f2c4cf;
