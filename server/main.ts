@@ -6,6 +6,12 @@ import { detectEnvironment } from "./detect.js";
 import { readBlockData } from "./local-data.js";
 import { readCloudBlockData } from "./cloud-data.js";
 import { proxyRpc } from "./rpc-proxy.js";
+import { isUnlocked, setUnlocked, unlockExpiresInMs } from "./write-guard.js";
+import {
+  deleteCloudItem,
+  deleteLocalRecord,
+  setCloudUserEnabled,
+} from "./writes.js";
 
 /**
  * Console backend. Deliberately localhost-only: it holds no auth because it
@@ -30,6 +36,56 @@ const profile = args.profile ?? process.env.AWS_PROFILE ?? "default";
 const region = args.region ?? process.env.AWS_REGION;
 const port = Number(args.port ?? 4401);
 
+async function routePost(url: URL, body: string) {
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return json({ error: "invalid JSON body" }, 400);
+  }
+  const cloudOptions = { profile, ...(region ? { region } : {}) };
+
+  switch (url.pathname) {
+    case "/console-api/rpc": {
+      if (typeof parsed.method !== "string" || !Array.isArray(parsed.params)) {
+        return json({ error: "expected { method: string, params: unknown[] }" }, 400);
+      }
+      return json(await proxyRpc({ method: parsed.method, params: parsed.params }));
+    }
+    case "/console-api/unlock": {
+      setUnlocked(parsed.unlock === true);
+      return json({ unlocked: isUnlocked(), expiresInMs: unlockExpiresInMs() });
+    }
+    case "/console-api/write/cloud-delete": {
+      if (!isUnlocked()) return json({ error: "cloud writes are locked" }, 403);
+      const { stack, fullId, key } = parsed;
+      if (typeof stack !== "string" || typeof fullId !== "string" || typeof key !== "object" || key === null) {
+        return json({ error: "expected { stack, fullId, key }" }, 400);
+      }
+      return json(
+        await deleteCloudItem(stack, fullId, key as Record<string, unknown>, cloudOptions),
+      );
+    }
+    case "/console-api/write/cloud-user": {
+      if (!isUnlocked()) return json({ error: "cloud writes are locked" }, 403);
+      const { stack, fullId, username, enabled } = parsed;
+      if (typeof stack !== "string" || typeof fullId !== "string" || typeof username !== "string" || typeof enabled !== "boolean") {
+        return json({ error: "expected { stack, fullId, username, enabled }" }, 400);
+      }
+      return json(await setCloudUserEnabled(stack, fullId, username, enabled, cloudOptions));
+    }
+    case "/console-api/write/local-delete": {
+      const { fullId, recordKey } = parsed;
+      if (typeof fullId !== "string" || typeof recordKey !== "string") {
+        return json({ error: "expected { fullId, recordKey }" }, 400);
+      }
+      return json(await deleteLocalRecord(projectPath, fullId, recordKey));
+    }
+    default:
+      return json({ error: "not found" }, 404);
+  }
+}
+
 function json(body: unknown, status = 200) {
   return {
     status,
@@ -39,18 +95,7 @@ function json(body: unknown, status = 200) {
 }
 
 async function route(method: string, url: URL, body: string) {
-  if (method === "POST" && url.pathname === "/console-api/rpc") {
-    let parsed: { method?: unknown; params?: unknown };
-    try {
-      parsed = JSON.parse(body);
-    } catch {
-      return json({ error: "invalid JSON body" }, 400);
-    }
-    if (typeof parsed.method !== "string" || !Array.isArray(parsed.params)) {
-      return json({ error: "expected { method: string, params: unknown[] }" }, 400);
-    }
-    return json(await proxyRpc({ method: parsed.method, params: parsed.params }));
-  }
+  if (method === "POST") return routePost(url, body);
   if (method !== "GET") return json({ error: "method not allowed" }, 405);
   const dataMatch = url.pathname.match(/^\/console-api\/data\/([\w.-]+)$/);
   if (dataMatch?.[1]) {
@@ -76,7 +121,13 @@ async function route(method: string, url: URL, body: string) {
     case "/console-api/environment":
       return json(await detectEnvironment(projectPath, profile, region));
     case "/console-api/meta":
-      return json({ projectPath, profile, region: region ?? null });
+      return json({
+        projectPath,
+        profile,
+        region: region ?? null,
+        unlocked: isUnlocked(),
+        unlockExpiresInMs: unlockExpiresInMs(),
+      });
     default:
       return json({ error: "not found" }, 404);
   }
