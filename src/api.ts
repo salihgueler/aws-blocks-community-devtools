@@ -47,8 +47,23 @@ export function useEnvironment(): Loadable<EnvironmentStatus> {
   return useGet<EnvironmentStatus>("/console-api/environment");
 }
 
-export function useBlockData(fullId: string): Loadable<BlockDataPage> {
-  return useGet<BlockDataPage>(`/console-api/data/${encodeURIComponent(fullId)}`);
+export interface DataQuery {
+  env: "local" | "cloud";
+  stack?: string;
+  blockType?: string;
+}
+
+export function useBlockData(fullId: string, query: DataQuery): Loadable<BlockDataPage> {
+  const params = new URLSearchParams();
+  if (query.env === "cloud") {
+    params.set("env", "cloud");
+    if (query.stack) params.set("stack", query.stack);
+    if (query.blockType) params.set("type", query.blockType);
+  }
+  const suffix = params.size > 0 ? `?${params.toString()}` : "";
+  return useGet<BlockDataPage>(
+    `/console-api/data/${encodeURIComponent(fullId)}${suffix}`,
+  );
 }
 
 export async function callRpc(method: string, params: unknown[]): Promise<RpcResponse> {

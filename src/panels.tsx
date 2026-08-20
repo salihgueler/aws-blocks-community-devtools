@@ -1,20 +1,21 @@
 import { useState } from "react";
-import { callRpc, useBlockData } from "./api";
+import { callRpc, useBlockData, type DataQuery } from "./api";
 import type { ApiMethod, RpcResponse } from "../shared/types";
 
-export function DataBrowser({ fullId }: { fullId: string }) {
-  const { data, error, loading } = useBlockData(fullId);
+export function DataBrowser({ fullId, query }: { fullId: string; query: DataQuery }) {
+  const { data, error, loading } = useBlockData(fullId, query);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const title = query.env === "cloud" ? "Cloud data · read-only" : "Local data";
 
-  if (loading) return <div className="card"><h3>Local data</h3><div className="empty">Loading…</div></div>;
+  if (loading) return <div className="card"><h3>{title}</h3><div className="empty">Loading…</div></div>;
   const problem = error ?? data?.error;
   if (problem || !data) {
-    return <div className="card"><h3>Local data</h3><div className="empty">{problem ?? "no data"}</div></div>;
+    return <div className="card"><h3>{title}</h3><div className="empty">{problem ?? "no data"}</div></div>;
   }
   return (
     <div className="card">
       <h3>
-        Local data · {data.source} · {data.totalRecords} record{data.totalRecords === 1 ? "" : "s"}
+        {title} · {data.source} · {data.totalRecords} record{data.totalRecords === 1 ? "" : "s"}
         {data.redacted ? " · secrets redacted" : ""}
       </h3>
       {data.records.length === 0 ? (

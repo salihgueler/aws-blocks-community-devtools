@@ -82,7 +82,11 @@ export function App() {
             <div className="error-banner">Cloud: {environment.data.cloud.error}</div>
           )}
           {selected ? (
-            <BlockDetail block={selected} mode={mode} />
+            <BlockDetail
+              block={selected}
+              mode={mode}
+              stackName={cloud?.stackFound ? cloud.stackName : null}
+            />
           ) : (
             <div className="empty">
               {inventory.loading
@@ -96,8 +100,16 @@ export function App() {
   );
 }
 
-function BlockDetail({ block, mode }: { block: DiscoveredBlock; mode: EnvMode }) {
-  const hasLocalStore = ["data", "auth", "storage", "config"].includes(block.category);
+function BlockDetail({
+  block,
+  mode,
+  stackName,
+}: {
+  block: DiscoveredBlock;
+  mode: EnvMode;
+  stackName: string | null;
+}) {
+  const hasStore = ["data", "auth", "storage", "config"].includes(block.category);
   return (
     <>
       <h2>{block.id}</h2>
@@ -105,16 +117,23 @@ function BlockDetail({ block, mode }: { block: DiscoveredBlock; mode: EnvMode })
         {block.type} · {block.fullId} · {block.file}:{block.line} · viewing: {mode}
       </div>
       {mode === "cloud" ? (
-        <div className="card">
-          <h3>Cloud data</h3>
-          <div className="empty">Coming in Phase 3 — switch to Local for live panels.</div>
-        </div>
+        hasStore && stackName ? (
+          <DataBrowser
+            fullId={block.fullId}
+            query={{ env: "cloud", stack: stackName, blockType: block.type }}
+          />
+        ) : (
+          <div className="card">
+            <h3>Cloud data · read-only</h3>
+            <div className="empty">No browsable cloud store for this block type.</div>
+          </div>
+        )
       ) : (
         <>
           {block.methods && block.methods.length > 0 && (
             <RpcPlayground namespace={block.id} methods={block.methods} />
           )}
-          {hasLocalStore && <DataBrowser fullId={block.fullId} />}
+          {hasStore && <DataBrowser fullId={block.fullId} query={{ env: "local" }} />}
         </>
       )}
       {block.configPreview && (
