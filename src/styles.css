@@ -35,6 +35,18 @@ body {
 .env-pill.active { border-color: var(--accent); color: var(--text); background: var(--panel-2); }
 .env-pill.unavailable { opacity: 0.5; cursor: not-allowed; }
 .env-pill .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
+.env-pill.lock { border-color: var(--ok); color: var(--text); }
+.env-pill.lock.unlocked { border-color: #d9534f; background: #3a2430; color: #f2c4cf; }
+.actions-cell { white-space: nowrap; }
+.row-action {
+  font-size: 11px; padding: 3px 10px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+}
+.row-action.danger:hover { border-color: #d9534f; color: #f2c4cf; }
+.notice {
+  background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+  padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; font-size: 12px;
+}
 .dot.up { background: var(--ok); }
 .dot.down { background: var(--warn); }
 .main { display: grid; grid-template-columns: 300px 1fr; min-height: 0; }

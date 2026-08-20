@@ -1,11 +1,50 @@
 import { useState } from "react";
-import { callRpc, useBlockData, type DataQuery } from "./api";
+import {
+  callRpc,
+  deleteCloudItem,
+  deleteLocalRecord,
+  setCloudUserEnabled,
+  useBlockData,
+  type DataQuery,
+} from "./api";
 import type { ApiMethod, RpcResponse } from "../shared/types";
 
-export function DataBrowser({ fullId, query }: { fullId: string; query: DataQuery }) {
-  const { data, error, loading } = useBlockData(fullId, query);
+export function DataBrowser({
+  fullId,
+  query,
+  blockType,
+  unlocked,
+}: {
+  fullId: string;
+  query: DataQuery;
+  blockType: string;
+  unlocked: boolean;
+}) {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { data, error, loading } = useBlockData(fullId, query, refreshKey);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
-  const title = query.env === "cloud" ? "Cloud data · read-only" : "Local data";
+  const [notice, setNotice] = useState<string | null>(null);
+  const isCloud = query.env === "cloud";
+  const isCognito = isCloud && blockType.startsWith("Auth");
+  const canWrite = isCloud ? unlocked : true;
+  const title = isCloud ? "Cloud data · read-only unless unlocked" : "Local data";
+
+  async function removeRecord(recordKey: string) {
+    const target = isCloud ? "PRODUCTION" : "local mock";
+    if (!window.confirm(`Delete ${recordKey} from the ${target} store? This cannot be undone.`)) return;
+    const result = isCloud
+      ? await deleteCloudItem(query.stack ?? "", fullId, parseDynamoKey(recordKey))
+      : await deleteLocalRecord(fullId, recordKey);
+    setNotice(result.message);
+    if (result.ok) setRefreshKey((k) => k + 1);
+  }
+
+  async function toggleUser(username: string, enabled: boolean) {
+    if (!window.confirm(`${enabled ? "Enable" : "Disable"} ${username} in the PRODUCTION user pool?`)) return;
+    const result = await setCloudUserEnabled(query.stack ?? "", fullId, username, enabled);
+    setNotice(result.message);
+    if (result.ok) setRefreshKey((k) => k + 1);
+  }
 
   if (loading) return <div className="card"><h3>{title}</h3><div className="empty">Loading…</div></div>;
   const problem = error ?? data?.error;
@@ -18,17 +57,25 @@ export function DataBrowser({ fullId, query }: { fullId: string; query: DataQuer
         {title} · {data.source} · {data.totalRecords} record{data.totalRecords === 1 ? "" : "s"}
         {data.redacted ? " · secrets redacted" : ""}
       </h3>
+      {notice && <div className="notice">{notice}</div>}
       {data.records.length === 0 ? (
         <div className="empty">Store is empty.</div>
       ) : (
         <table className="data-table">
           <thead>
-            <tr><th scope="col">Key</th><th scope="col">Value</th></tr>
+            <tr>
+              <th scope="col">Key</th>
+              <th scope="col">Value</th>
+              {canWrite && <th scope="col">Actions</th>}
+            </tr>
           </thead>
           <tbody>
             {data.records.map((record) => {
               const expanded = expandedKey === record.key;
               const text = JSON.stringify(record.value, null, expanded ? 2 : 0) ?? "";
+              const userEnabled = isCognito
+                ? (record.value as { enabled?: boolean }).enabled !== false
+                : true;
               return (
                 <tr key={record.key}>
                   <td className="key-cell">{record.key}</td>
@@ -41,6 +88,25 @@ export function DataBrowser({ fullId, query }: { fullId: string; query: DataQuer
                       <pre className={`code value ${expanded ? "" : "clamp"}`}>{text}</pre>
                     </button>
                   </td>
+                  {canWrite && (
+                    <td className="actions-cell">
+                      {isCognito ? (
+                        <button
+                          className="row-action"
+                          onClick={() => toggleUser(record.key, !userEnabled)}
+                        >
+                          {userEnabled ? "Disable" : "Enable"}
+                        </button>
+                      ) : (
+                        <button
+                          className="row-action danger"
+                          onClick={() => removeRecord(record.key)}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -49,6 +115,12 @@ export function DataBrowser({ fullId, query }: { fullId: string; query: DataQuer
       )}
     </div>
   );
+}
+
+/** Cloud record keys render as "pk · sk" — convert back for DeleteItem. */
+function parseDynamoKey(recordKey: string): Record<string, string> {
+  const [pk, sk] = recordKey.split(" · ");
+  return sk !== undefined ? { pk: pk ?? "", sk } : { pk: pk ?? "" };
 }
 
 export function RpcPlayground({ namespace, methods }: { namespace: string; methods: ApiMethod[] }) {

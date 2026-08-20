@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useEnvironment, useInventory } from "./api";
+import { setUnlock, useEnvironment, useInventory } from "./api";
 import { DataBrowser, RpcPlayground } from "./panels";
 import type { DiscoveredBlock, EnvMode } from "../shared/types";
 
@@ -14,6 +14,19 @@ export function App() {
   const environment = useEnvironment();
   const [mode, setMode] = useState<EnvMode>("local");
   const [selectedFullId, setSelectedFullId] = useState<string | null>(null);
+  const [unlocked, setUnlocked] = useState(false);
+
+  async function toggleUnlock() {
+    if (
+      !unlocked &&
+      !window.confirm(
+        "Unlock writes against the DEPLOYED stack? Deletes and user changes will hit production. Auto-relocks after 15 minutes.",
+      )
+    )
+      return;
+    const result = await setUnlock(!unlocked);
+    setUnlocked(result.unlocked);
+  }
 
   const grouped = useMemo(() => {
     const groups = new Map<string, DiscoveredBlock[]>();
@@ -57,6 +70,15 @@ export function App() {
             <span className={`dot ${cloud?.stackFound ? "up" : "down"}`} />
             {cloudLabel}
           </button>
+          {mode === "cloud" && cloud?.stackFound && (
+            <button
+              className={`env-pill lock ${unlocked ? "unlocked" : ""}`}
+              onClick={toggleUnlock}
+              title={unlocked ? "Writes enabled — click to relock" : "Writes locked — click to unlock"}
+            >
+              {unlocked ? "🔓 writes ON" : "🔒 read-only"}
+            </button>
+          )}
         </div>
       </header>
       <div className="main">
@@ -86,6 +108,7 @@ export function App() {
               block={selected}
               mode={mode}
               stackName={cloud?.stackFound ? cloud.stackName : null}
+              unlocked={unlocked}
             />
           ) : (
             <div className="empty">
@@ -104,10 +127,12 @@ function BlockDetail({
   block,
   mode,
   stackName,
+  unlocked,
 }: {
   block: DiscoveredBlock;
   mode: EnvMode;
   stackName: string | null;
+  unlocked: boolean;
 }) {
   const hasStore = ["data", "auth", "storage", "config"].includes(block.category);
   return (
@@ -121,6 +146,8 @@ function BlockDetail({
           <DataBrowser
             fullId={block.fullId}
             query={{ env: "cloud", stack: stackName, blockType: block.type }}
+            blockType={block.type}
+            unlocked={unlocked}
           />
         ) : (
           <div className="card">
@@ -133,7 +160,14 @@ function BlockDetail({
           {block.methods && block.methods.length > 0 && (
             <RpcPlayground namespace={block.id} methods={block.methods} />
           )}
-          {hasStore && <DataBrowser fullId={block.fullId} query={{ env: "local" }} />}
+          {hasStore && (
+            <DataBrowser
+              fullId={block.fullId}
+              query={{ env: "local" }}
+              blockType={block.type}
+              unlocked={true}
+            />
+          )}
         </>
       )}
       {block.configPreview && (

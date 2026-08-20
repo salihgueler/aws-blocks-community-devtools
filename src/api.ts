@@ -12,7 +12,7 @@ interface Loadable<T> {
   loading: boolean;
 }
 
-function useGet<T>(path: string): Loadable<T> {
+function useGet<T>(path: string, refreshKey = 0): Loadable<T> {
   const [state, setState] = useState<Loadable<T>>({
     data: null,
     error: null,
@@ -35,7 +35,7 @@ function useGet<T>(path: string): Loadable<T> {
     return () => {
       cancelled = true;
     };
-  }, [path]);
+  }, [path, refreshKey]);
   return state;
 }
 
@@ -53,7 +53,11 @@ export interface DataQuery {
   blockType?: string;
 }
 
-export function useBlockData(fullId: string, query: DataQuery): Loadable<BlockDataPage> {
+export function useBlockData(
+  fullId: string,
+  query: DataQuery,
+  refreshKey = 0,
+): Loadable<BlockDataPage> {
   const params = new URLSearchParams();
   if (query.env === "cloud") {
     params.set("env", "cloud");
@@ -63,8 +67,36 @@ export function useBlockData(fullId: string, query: DataQuery): Loadable<BlockDa
   const suffix = params.size > 0 ? `?${params.toString()}` : "";
   return useGet<BlockDataPage>(
     `/console-api/data/${encodeURIComponent(fullId)}${suffix}`,
+    refreshKey,
   );
 }
+
+async function postJson(path: string, payload: unknown): Promise<{ ok: boolean; message: string }> {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const body = await response.json();
+  if (!response.ok) return { ok: false, message: body.error ?? `HTTP ${response.status}` };
+  return { ok: body.ok ?? true, message: body.message ?? "done" };
+}
+
+export const setUnlock = (unlock: boolean) =>
+  fetch("/console-api/unlock", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ unlock }),
+  }).then((r) => r.json() as Promise<{ unlocked: boolean }>);
+
+export const deleteCloudItem = (stack: string, fullId: string, key: Record<string, string>) =>
+  postJson("/console-api/write/cloud-delete", { stack, fullId, key });
+
+export const setCloudUserEnabled = (stack: string, fullId: string, username: string, enabled: boolean) =>
+  postJson("/console-api/write/cloud-user", { stack, fullId, username, enabled });
+
+export const deleteLocalRecord = (fullId: string, recordKey: string) =>
+  postJson("/console-api/write/local-delete", { fullId, recordKey });
 
 export async function callRpc(method: string, params: unknown[]): Promise<RpcResponse> {
   const response = await fetch("/console-api/rpc", {
