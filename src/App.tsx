@@ -13,8 +13,17 @@ export function App() {
   const inventory = useInventory();
   const environment = useEnvironment();
   const [mode, setMode] = useState<EnvMode>("local");
-  const [selectedFullId, setSelectedFullId] = useState<string | null>(null);
+  const [selectedFullId, setSelectedFullId] = useState<string | null>(
+    () => new URLSearchParams(window.location.search).get("block"),
+  );
   const [unlocked, setUnlocked] = useState(false);
+
+  function selectBlock(fullId: string) {
+    setSelectedFullId(fullId);
+    const url = new URL(window.location.href);
+    url.searchParams.set("block", fullId);
+    window.history.replaceState(null, "", url);
+  }
 
   async function toggleUnlock() {
     if (
@@ -91,7 +100,7 @@ export function App() {
                 <button
                   key={block.fullId}
                   className={`block-item ${block.fullId === selectedFullId ? "selected" : ""}`}
-                  onClick={() => setSelectedFullId(block.fullId)}
+                  onClick={() => selectBlock(block.fullId)}
                 >
                   {block.id} <span className="type">· {block.type}</span>
                 </button>
