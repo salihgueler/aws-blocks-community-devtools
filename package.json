@@ -1,0 +1,41 @@
+{
+  "name": "blocks-console",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local-first admin console for AWS Blocks projects: inspect and interact with Building Blocks locally or against a deployed stack.",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "dev:server": "tsx watch server/main.ts",
+    "dev:client": "vite",
+    "dev": "concurrently -n server,client \"npm:dev:server\" \"npm:dev:client\"",
+    "build": "tsc --noEmit && vite build",
+    "start": "tsx server/main.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cloudformation": "3.1114.0",
+    "@aws-sdk/client-cloudwatch-logs": "3.1114.0",
+    "@aws-sdk/client-cognito-identity-provider": "3.1114.0",
+    "@aws-sdk/client-dynamodb": "3.1114.0",
+    "@aws-sdk/client-s3": "3.1114.0",
+    "@aws-sdk/client-sts": "3.1114.0",
+    "@aws-sdk/credential-providers": "3.1114.0",
+    "@aws-sdk/lib-dynamodb": "3.1114.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "ts-morph": "24.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@types/react": "19.1.0",
+    "@types/react-dom": "19.1.0",
+    "@vitejs/plugin-react": "4.6.0",
+    "concurrently": "9.1.0",
+    "tsx": "4.23.12",
+    "typescript": "5.7.2",
+    "vite": "6.4.3"
+  }
+}
