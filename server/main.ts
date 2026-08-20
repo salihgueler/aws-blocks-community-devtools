@@ -3,6 +3,8 @@ import { parseArgs } from "node:util";
 import { resolve } from "node:path";
 import { discoverBlocks } from "./discovery.js";
 import { detectEnvironment } from "./detect.js";
+import { readBlockData } from "./local-data.js";
+import { proxyRpc } from "./rpc-proxy.js";
 
 /**
  * Console backend. Deliberately localhost-only: it holds no auth because it
@@ -35,8 +37,24 @@ function json(body: unknown, status = 200) {
   };
 }
 
-async function route(method: string, url: URL) {
+async function route(method: string, url: URL, body: string) {
+  if (method === "POST" && url.pathname === "/console-api/rpc") {
+    let parsed: { method?: unknown; params?: unknown };
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      return json({ error: "invalid JSON body" }, 400);
+    }
+    if (typeof parsed.method !== "string" || !Array.isArray(parsed.params)) {
+      return json({ error: "expected { method: string, params: unknown[] }" }, 400);
+    }
+    return json(await proxyRpc({ method: parsed.method, params: parsed.params }));
+  }
   if (method !== "GET") return json({ error: "method not allowed" }, 405);
+  const dataMatch = url.pathname.match(/^\/console-api\/data\/([\w.-]+)$/);
+  if (dataMatch?.[1]) {
+    return json(readBlockData(projectPath, dataMatch[1]));
+  }
   switch (url.pathname) {
     case "/console-api/inventory":
       return json(discoverBlocks(projectPath));
@@ -51,8 +69,14 @@ async function route(method: string, url: URL) {
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) chunks.push(chunk as Buffer);
   try {
-    const result = await route(request.method ?? "GET", url);
+    const result = await route(
+      request.method ?? "GET",
+      url,
+      Buffer.concat(chunks).toString("utf8"),
+    );
     response.writeHead(result.status, result.headers);
     response.end(result.body);
   } catch (error) {
