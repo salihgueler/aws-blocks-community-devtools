@@ -17,6 +17,12 @@ export type BlockCategory =
   | "hosting"
   | "other";
 
+export interface ApiMethod {
+  name: string;
+  /** Parameter names as written in source, e.g. ["slug", "input"] */
+  params: string[];
+}
+
 export interface DiscoveredBlock {
   /** Block class name, e.g. "DistributedTable" */
   type: string;
@@ -30,8 +36,8 @@ export interface DiscoveredBlock {
   line: number;
   /** Best-effort static snapshot of the options literal (may be partial) */
   configPreview: string | null;
-  /** For ApiNamespace: method names discovered in the factory literal */
-  methods?: string[];
+  /** For ApiNamespace: methods discovered in the factory literal */
+  methods?: ApiMethod[];
 }
 
 export interface ScopeInfo {
@@ -74,4 +80,34 @@ export interface CloudEnvStatus {
 export interface EnvironmentStatus {
   local: LocalEnvStatus;
   cloud: CloudEnvStatus;
+}
+
+/** One record from a block's local store, normalized for tabular display. */
+export interface DataRecord {
+  key: string;
+  value: unknown;
+}
+
+export interface BlockDataPage {
+  fullId: string;
+  /** Which .bb-data file the records came from */
+  source: string;
+  records: DataRecord[];
+  totalRecords: number;
+  /** True when values were redacted (auth secrets, session tokens) */
+  redacted: boolean;
+  error: string | null;
+}
+
+export interface RpcRequest {
+  method: string;
+  params: unknown[];
+}
+
+export interface RpcResponse {
+  /** Raw JSON-RPC result or error body, verbatim */
+  ok: boolean;
+  status: number;
+  body: unknown;
+  durationMs: number;
 }

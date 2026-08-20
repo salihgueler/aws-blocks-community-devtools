@@ -2,6 +2,7 @@ import { Project, Node, SyntaxKind } from "ts-morph";
 import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import type {
+  ApiMethod,
   BlockCategory,
   DiscoveredBlock,
   ProjectInventory,
@@ -134,22 +135,32 @@ function extractConfigPreview(arg: Node | undefined): string | null {
 }
 
 /**
- * ApiNamespace's 3rd arg is a factory: (context) => ({ methodA() {...}, ... }).
- * Pull the method names off the returned object literal.
+ * ApiNamespace's 3rd arg is a factory: (context) => ({ methodA(a, b) {...} }).
+ * Pull method names and parameter names off the returned object literal.
  */
-function extractApiMethods(arg: Node | undefined): string[] {
+function extractApiMethods(arg: Node | undefined): ApiMethod[] {
   if (!arg) return [];
   const objectLiterals = arg.getDescendantsOfKind(
     SyntaxKind.ObjectLiteralExpression,
   );
   const root = objectLiterals[0];
   if (!root) return [];
-  return root
-    .getProperties()
-    .map((property) => {
-      if (Node.isMethodDeclaration(property)) return property.getName();
-      if (Node.isPropertyAssignment(property)) return property.getName();
-      return null;
-    })
-    .filter((name): name is string => name !== null);
+  const methods: ApiMethod[] = [];
+  for (const property of root.getProperties()) {
+    if (Node.isMethodDeclaration(property)) {
+      methods.push({
+        name: property.getName(),
+        params: property.getParameters().map((parameter) => parameter.getName()),
+      });
+    } else if (Node.isPropertyAssignment(property)) {
+      const initializer = property.getInitializer();
+      const params =
+        initializer &&
+        (Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer))
+          ? initializer.getParameters().map((parameter) => parameter.getName())
+          : [];
+      methods.push({ name: property.getName(), params });
+    }
+  }
+  return methods;
 }
