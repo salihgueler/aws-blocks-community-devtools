@@ -7,7 +7,22 @@ import {
   useBlockData,
   type DataQuery,
 } from "./api";
+import { JsonView } from "./JsonView";
 import type { ApiMethod, RpcResponse } from "../shared/types";
+
+/** One-line preview for a collapsed record: top-level keys with scalar values. */
+function summarize(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "";
+  if (Array.isArray(value)) return `[ ${value.length} item${value.length === 1 ? "" : "s"} ]`;
+  const parts = Object.entries(value).map(([key, field]) => {
+    if (field === null || typeof field !== "object") {
+      const text = JSON.stringify(field) ?? "";
+      return `${key}: ${text.length > 24 ? `${text.slice(0, 24)}…` : text}`;
+    }
+    return `${key}: ${Array.isArray(field) ? `[${field.length}]` : "{…}"}`;
+  });
+  return parts.join("  ·  ");
+}
 
 export function DataBrowser({
   fullId,
@@ -72,7 +87,6 @@ export function DataBrowser({
           <tbody>
             {data.records.map((record) => {
               const expanded = expandedKey === record.key;
-              const text = JSON.stringify(record.value, null, expanded ? 2 : 0) ?? "";
               const userEnabled = isCognito
                 ? (record.value as { enabled?: boolean }).enabled !== false
                 : true;
@@ -85,7 +99,11 @@ export function DataBrowser({
                       onClick={() => setExpandedKey(expanded ? null : record.key)}
                       aria-expanded={expanded}
                     >
-                      <pre className={`code value ${expanded ? "" : "clamp"}`}>{text}</pre>
+                      {expanded ? (
+                        <JsonView value={record.value} />
+                      ) : (
+                        <span className="value-summary">{summarize(record.value)}</span>
+                      )}
                     </button>
                   </td>
                   {canWrite && (
@@ -199,7 +217,9 @@ export function RpcPlayground({ namespace, methods }: { namespace: string; metho
               <div className="meta">
                 HTTP {response.status} · {response.durationMs}ms
               </div>
-              <pre className="code">{JSON.stringify(response.body, null, 2)}</pre>
+              <div className="response-box">
+                <JsonView value={response.body} />
+              </div>
             </>
           )}
         </div>

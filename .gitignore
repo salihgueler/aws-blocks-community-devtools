@@ -4,3 +4,7 @@ dist/
 .DS_Store
 .env
 .env.*
+.claude/
+.codex/
+.cursor/
+.agents/

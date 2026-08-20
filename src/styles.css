@@ -8,6 +8,12 @@
   --accent: #7c5cff;
   --ok: #2fbf71;
   --warn: #e0a83c;
+  --danger: #e0606c;
+  --json-key: #79b8ff;
+  --json-str: #7ee2a8;
+  --json-num: #f0a45d;
+  --json-bool: #c792ea;
+  --sans: -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
   --mono: "SF Mono", ui-monospace, Menlo, monospace;
   color-scheme: dark;
 }
@@ -16,12 +22,15 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 13px/1.6 var(--mono);
+  font: 13px/1.6 var(--sans);
 }
-/* Kill the browser monospace-quirk (13.33px) on nested code/pre */
+/* Mono is earned by data, code, and identifiers — not UI chrome */
 code, pre, kbd { font-family: var(--mono); font-size: inherit; }
 button, input, textarea, select { font: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+::selection { background: var(--accent); color: #fff; }
+* { scrollbar-color: var(--border) transparent; scrollbar-width: thin; }
+textarea { caret-color: var(--accent); }
 .layout { display: grid; grid-template-rows: auto 1fr; height: 100vh; }
 .topbar {
   display: flex; align-items: center; gap: 16px;
@@ -40,13 +49,13 @@ button, input, textarea, select { font: inherit; }
 .env-pill.unavailable { opacity: 0.5; cursor: not-allowed; }
 .env-pill .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
 .env-pill.lock { border-color: var(--ok); color: var(--text); }
-.env-pill.lock.unlocked { border-color: #d9534f; background: #3a2430; color: #f2c4cf; }
+.env-pill.lock.unlocked { border-color: var(--danger); background: #3a2430; color: #f2c4cf; }
 .actions-cell { white-space: nowrap; }
 .row-action {
   font-size: 13px; padding: 3px 10px; border-radius: 6px; cursor: pointer;
   border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
 }
-.row-action.danger:hover { border-color: #d9534f; color: #f2c4cf; }
+.row-action.danger:hover { border-color: var(--danger); color: #f2c4cf; }
 .notice {
   background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
   padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; font-size: 13px;
@@ -92,17 +101,32 @@ pre.code {
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .data-table th {
   text-align: left; color: var(--text-dim); font-weight: 600;
-  padding: 6px 8px; border-bottom: 1px solid var(--border);
+  padding: 8px; border-bottom: 1px solid var(--border);
 }
-.data-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.data-table td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.data-table tbody tr:hover { background: color-mix(in srgb, var(--panel-2) 55%, transparent); }
 .key-cell { font-family: var(--mono); color: var(--text-dim); max-width: 320px; word-break: break-all; }
 .value-toggle {
   display: block; width: 100%; text-align: left; background: transparent;
   border: none; padding: 0; cursor: pointer; color: inherit;
 }
-pre.code.value { background: transparent; padding: 0; }
-pre.code.clamp {
-  max-height: 1.6em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.value-summary {
+  display: block; font-family: var(--mono); color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 640px;
+}
+.json-view {
+  font-family: var(--mono); line-height: 1.7; white-space: pre-wrap;
+  word-break: break-word; padding: 4px 0;
+}
+.json-key { color: var(--json-key); }
+.json-str { color: var(--json-str); }
+.json-num { color: var(--json-num); }
+.json-bool { color: var(--json-bool); }
+.json-null { color: var(--text-dim); font-style: italic; }
+.json-punct { color: var(--text-dim); }
+.response-box {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px; overflow-x: auto;
 }
 .playground { margin-top: 14px; display: grid; gap: 10px; }
 .field-label { font-size: 13px; color: var(--text-dim); }
