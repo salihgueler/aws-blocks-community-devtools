@@ -123,7 +123,12 @@ export function DataBrowser({
   keySchema: KeySchema | undefined;
 }) {
   const [refreshKey, setRefreshKey] = useState(0);
-  const { data, error, loading } = useBlockData(fullId, query, refreshKey);
+  const [store, setStore] = useState<string | undefined>(undefined);
+  const { data, error, loading } = useBlockData(
+    fullId,
+    { ...query, ...(store ? { store } : {}) },
+    refreshKey,
+  );
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [editor, setEditor] = useState<
@@ -196,6 +201,19 @@ export function DataBrowser({
           </button>
         )}
       </div>
+      {data.stores.length > 1 && (
+        <div className="store-picker" role="group" aria-label="Store">
+          {data.stores.map((name) => (
+            <button
+              key={name}
+              className={`row-action ${name === data.activeStore ? "selected" : ""}`}
+              onClick={() => setStore(name)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
       {notice && <div className="notice">{notice}</div>}
       {editor && (
         <RecordEditor
@@ -296,7 +314,15 @@ function parseDynamoKey(recordKey: string): Record<string, string> {
   return sk !== undefined ? { pk: pk ?? "", sk } : { pk: pk ?? "" };
 }
 
-export function RpcPlayground({ namespace, methods }: { namespace: string; methods: ApiMethod[] }) {
+export function RpcPlayground({
+  namespace,
+  methods,
+  env,
+}: {
+  namespace: string;
+  methods: ApiMethod[];
+  env: "local" | "cloud";
+}) {
   const [selected, setSelected] = useState<ApiMethod | null>(null);
   const [argsText, setArgsText] = useState("[]");
   const [response, setResponse] = useState<RpcResponse | null>(null);
@@ -330,7 +356,7 @@ export function RpcPlayground({ namespace, methods }: { namespace: string; metho
     setArgError(null);
     setBusy(true);
     try {
-      setResponse(await callRpc(`${namespace}.${selected.name}`, params));
+      setResponse(await callRpc(`${namespace}.${selected.name}`, params, env));
     } finally {
       setBusy(false);
     }
@@ -338,7 +364,7 @@ export function RpcPlayground({ namespace, methods }: { namespace: string; metho
 
   return (
     <div className="card">
-      <h3>RPC playground · local</h3>
+      <h3>RPC playground · {env === "cloud" ? "deployed API" : "local dev server"}</h3>
       <div className="methods">
         {methods.map((method) => (
           <button

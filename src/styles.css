@@ -74,6 +74,12 @@ textarea { caret-color: var(--accent); }
 .env-pill:not(:disabled):hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
 .env-pill:not(:disabled):active { transform: translateY(1px); }
 .env-pill.lock { border-color: var(--ok); color: var(--text); }
+.env-pill.mismatch { border-color: var(--warn); color: var(--text); }
+.store-picker { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.store-picker .row-action.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--panel-2));
+}
 .env-pill.lock.unlocked { border-color: var(--danger); background: #3a2430; color: #f2c4cf; }
 .actions-cell { white-space: nowrap; }
 .row-action {

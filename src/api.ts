@@ -51,6 +51,8 @@ export interface DataQuery {
   env: "local" | "cloud";
   stack?: string;
   blockType?: string;
+  /** Which of a block's stores to read (blocks can shard across several) */
+  store?: string;
 }
 
 export function useBlockData(
@@ -64,6 +66,7 @@ export function useBlockData(
     if (query.stack) params.set("stack", query.stack);
     if (query.blockType) params.set("type", query.blockType);
   }
+  if (query.store) params.set("store", query.store);
   const suffix = params.size > 0 ? `?${params.toString()}` : "";
   return useGet<BlockDataPage>(
     `/console-api/data/${encodeURIComponent(fullId)}${suffix}`,
@@ -111,11 +114,15 @@ export const putLocalRecord = (
   mode: "create" | "edit",
 ) => postJson("/console-api/write/local-put", { fullId, item, mode });
 
-export async function callRpc(method: string, params: unknown[]): Promise<RpcResponse> {
+export async function callRpc(
+  method: string,
+  params: unknown[],
+  env: "local" | "cloud" = "local",
+): Promise<RpcResponse> {
   const response = await fetch("/console-api/rpc", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ method, params }),
+    body: JSON.stringify({ method, params, env }),
   });
   return (await response.json()) as RpcResponse;
 }

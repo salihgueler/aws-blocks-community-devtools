@@ -68,11 +68,20 @@ export function App() {
         </span>
         <div className="env-switch" role="group" aria-label="Environment">
           <button
-            className={`env-pill ${mode === "local" ? "active" : ""}`}
+            className={`env-pill ${mode === "local" ? "active" : ""} ${local?.matchesProject === false ? "mismatch" : ""}`}
             onClick={() => setMode("local")}
+            title={
+              local?.matchesProject === false
+                ? "A dev server is running on :3000 but it is serving a different project"
+                : undefined
+            }
           >
-            <span className={`dot ${local?.serverUp ? "up" : "down"}`} />
-            Local{local && !local.serverUp ? " (server down)" : ""}
+            <span className={`dot ${local?.serverUp && local?.matchesProject !== false ? "up" : "down"}`} />
+            {!local?.serverUp
+              ? "Local (server down)"
+              : local.matchesProject === false
+                ? "Local (other project on :3000)"
+                : "Local"}
           </button>
           <button
             className={`env-pill ${mode === "cloud" ? "active" : ""} ${cloud?.stackFound ? "" : "unavailable"}`}
@@ -163,24 +172,31 @@ function BlockDetail({
         </div>
       </div>
       {mode === "cloud" ? (
-        hasStore && stackName ? (
-          <DataBrowser
-            fullId={block.fullId}
-            query={{ env: "cloud", stack: stackName, blockType: block.type }}
-            blockType={block.type}
-            unlocked={unlocked}
-            keySchema={block.keySchema}
-          />
-        ) : (
-          <div className="card">
-            <h3>Cloud data · read-only</h3>
-            <div className="empty">No browsable cloud store for this block type.</div>
-          </div>
-        )
+        <>
+          {block.methods && block.methods.length > 0 && (
+            <RpcPlayground namespace={block.id} methods={block.methods} env="cloud" />
+          )}
+          {hasStore && stackName ? (
+            <DataBrowser
+              fullId={block.fullId}
+              query={{ env: "cloud", stack: stackName, blockType: block.type }}
+              blockType={block.type}
+              unlocked={unlocked}
+              keySchema={block.keySchema}
+            />
+          ) : (
+            hasStore && (
+              <div className="card">
+                <h3>Cloud data · read-only</h3>
+                <div className="empty">No deployed stack found for this project.</div>
+              </div>
+            )
+          )}
+        </>
       ) : (
         <>
           {block.methods && block.methods.length > 0 && (
-            <RpcPlayground namespace={block.id} methods={block.methods} />
+            <RpcPlayground namespace={block.id} methods={block.methods} env="local" />
           )}
           {hasStore && (
             <DataBrowser
