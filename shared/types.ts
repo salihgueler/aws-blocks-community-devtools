@@ -93,6 +93,8 @@ export interface CloudEnvStatus {
   error: string | null;
   /** Deployed JSON-RPC endpoint from the stack's ApiUrl output */
   apiUrl: string | null;
+  /** Stack names that were looked for, so the UI can explain a miss */
+  candidates: string[];
 }
 
 export interface EnvironmentStatus {

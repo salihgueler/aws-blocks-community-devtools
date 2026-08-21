@@ -161,6 +161,7 @@ export async function detectCloud(
     stackStatus: null,
     error: null,
     apiUrl: null,
+    candidates,
   };
   try {
     // The SDK's top-level `profile` option resolves credentials AND region

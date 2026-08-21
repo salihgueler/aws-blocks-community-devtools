@@ -52,9 +52,20 @@ export function App() {
     inventory.data?.blocks.find((b) => b.fullId === selectedFullId) ?? null;
   const local = environment.data?.local;
   const cloud = environment.data?.cloud;
-  const cloudLabel = cloud
-    ? `Cloud · ${cloud.profile} · ${cloud.accountId ?? "?"} · ${cloud.region ?? "?"}`
-    : "Cloud";
+  const cloudLabel = !cloud
+    ? "Cloud"
+    : cloud.error
+      ? `Cloud · unavailable`
+      : cloud.stackFound
+        ? `Cloud · ${cloud.profile} · ${cloud.accountId ?? "?"} · ${cloud.region ?? "?"}`
+        : `Cloud · not deployed`;
+  const cloudWhy = !cloud
+    ? undefined
+    : cloud.error
+      ? cloud.error
+      : cloud.stackFound
+        ? undefined
+        : `No stack named ${cloud.candidates.join(" or ")} in ${cloud.region ?? "?"} on profile ${cloud.profile}. Deploy with "npm run deploy" (or "npm run sandbox"), or pass --region if it lives elsewhere.`;
 
   return (
     <div className="layout">
@@ -87,7 +98,7 @@ export function App() {
             className={`env-pill ${mode === "cloud" ? "active" : ""} ${cloud?.stackFound ? "" : "unavailable"}`}
             onClick={() => cloud?.stackFound && setMode("cloud")}
             disabled={!cloud?.stackFound}
-            title={cloud?.error ?? undefined}
+            title={cloudWhy}
           >
             <span className={`dot ${cloud?.stackFound ? "up" : "down"}`} />
             {cloudLabel}
@@ -127,6 +138,9 @@ export function App() {
         <main className="detail">
           {environment.data?.cloud.error && (
             <div className="error-banner">Cloud: {environment.data.cloud.error}</div>
+          )}
+          {cloudWhy && !cloud?.error && (
+            <div className="notice cloud-note">Cloud mode unavailable — {cloudWhy}</div>
           )}
           {selected ? (
             <BlockDetail
