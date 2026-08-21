@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join, resolve, sep } from "node:path";
 import type { BlockDataPage, DataRecord } from "../shared/types.js";
-import { SECRET_KEY_PATTERN, looksSecret, redactValue } from "./redact.js";
+import { SECRET_KEY_PATTERN, looksSecret, orderStores, redactValue } from "./redact.js";
 
 /**
  * Reads a block's local mock state from .bb-data/<fullId>/.
@@ -52,9 +52,10 @@ export function readBlockData(
       }
     }
   }
-  empty.stores = stores;
+  empty.stores = orderStores(stores);
 
-  const selected = store && stores.includes(store) ? store : stores[0];
+  const selected =
+    store && empty.stores.includes(store) ? store : empty.stores[0];
   if (!selected) {
     return { ...empty, error: `no local data at .bb-data/${fullId}` };
   }

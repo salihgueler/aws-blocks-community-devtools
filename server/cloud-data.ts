@@ -1,11 +1,11 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DescribeTableCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import {
   CognitoIdentityProviderClient,
   ListUsersCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import type { BlockDataPage, DataRecord } from "../shared/types.js";
-import { looksSecret, redactValue } from "./redact.js";
+import { looksSecret, orderStores, redactValue } from "./redact.js";
 import {
   resolveBlockResources,
   type CloudClientOptions,
@@ -42,8 +42,8 @@ export async function readCloudBlockData(
     // A block can map to several physical stores (a table plus a sessions
     // table, a user pool plus its client) — expose them all, not just [0].
     base.stores = blockType.startsWith("Auth")
-      ? [...(resources.userPoolId ? [resources.userPoolId] : []), ...resources.tables]
-      : [...resources.tables, ...(resources.userPoolId ? [resources.userPoolId] : [])];
+      ? [...(resources.userPoolId ? [resources.userPoolId] : []), ...orderStores(resources.tables)]
+      : [...orderStores(resources.tables), ...(resources.userPoolId ? [resources.userPoolId] : [])];
     const selected =
       store && base.stores.includes(store) ? store : base.stores[0];
     base.activeStore = selected ?? null;
@@ -64,13 +64,27 @@ async function scanTable(
   base: BlockDataPage,
 ): Promise<BlockDataPage> {
   const client = DynamoDBDocumentClient.from(new DynamoDBClient(options));
+  // Key attribute names are per table (this project keys games on
+  // listKey/gameId, not pk/sk), so read them instead of assuming.
+  const described = await client.send(
+    new DescribeTableCommand({ TableName: tableName }),
+  );
+  const keyFields = (described.Table?.KeySchema ?? [])
+    .slice()
+    .sort((a, b) => (a.KeyType === "HASH" ? -1 : 1))
+    .map((element) => element.AttributeName)
+    .filter((name): name is string => Boolean(name));
   const page = await client.send(
     new ScanCommand({ TableName: tableName, Limit: SCAN_LIMIT }),
   );
   const sensitiveTable = SESSION_TABLE_PATTERN.test(tableName);
   let redactedAny = sensitiveTable;
   const records: DataRecord[] = (page.Items ?? []).map((item, index) => {
-    const key = [item.pk, item.sk].filter(Boolean).join(" · ") || String(index);
+    const key =
+      keyFields
+        .map((field) => item[field])
+        .filter((value) => value !== undefined)
+        .join(" · ") || String(index);
     // Same boundary rule as the local reader: the table name is a hint, the
     // value shape is the authority. A store nobody thought to name
     // "sessions" still must not ship credentials to the browser.

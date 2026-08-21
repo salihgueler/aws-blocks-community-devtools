@@ -21,6 +21,20 @@ const SECRET_VALUE_PATTERNS: RegExp[] = [
 
 export const REDACTED = "•••redacted•••";
 
+/**
+ * Ancillary stores (one-time codes, sessions, challenges) are usually empty
+ * while the block's primary store holds the data, so they sort last — landing
+ * on an empty `-codes` table makes a populated block look broken.
+ */
+const ANCILLARY = /-(codes|sessions|tokens|challenges|cache)$/i;
+
+export function orderStores(names: string[]): string[] {
+  return [...names].sort((a, b) => {
+    const rank = Number(ANCILLARY.test(a)) - Number(ANCILLARY.test(b));
+    return rank !== 0 ? rank : a.length - b.length || a.localeCompare(b);
+  });
+}
+
 /** True when a serialized value carries a recognizable credential shape. */
 export function looksSecret(value: string): boolean {
   return SECRET_VALUE_PATTERNS.some((pattern) => pattern.test(value));
