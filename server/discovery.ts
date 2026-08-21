@@ -5,6 +5,7 @@ import type {
   ApiMethod,
   BlockCategory,
   DiscoveredBlock,
+  KeySchema,
   ProjectInventory,
   ScopeInfo,
 } from "../shared/types.js";
@@ -101,6 +102,9 @@ export function discoverBlocks(projectPath: string): ProjectInventory {
         ...(typeName === "ApiNamespace"
           ? { methods: extractApiMethods(args[2]) }
           : {}),
+        ...(typeName === "DistributedTable"
+          ? { keySchema: extractKeySchema(args[2]) }
+          : {}),
       });
     }
   }
@@ -132,6 +136,32 @@ function extractConfigPreview(arg: Node | undefined): string | null {
   return text.length > CONFIG_PREVIEW_MAX
     ? `${text.slice(0, CONFIG_PREVIEW_MAX)}\n/* … truncated */`
     : text;
+}
+
+/**
+ * DistributedTable config: `{ key: { partitionKey: "pk", sortKey: "sk" } }`.
+ * Read the string literals off the nested `key` object.
+ */
+function extractKeySchema(arg: Node | undefined): KeySchema | undefined {
+  if (!arg || !Node.isObjectLiteralExpression(arg)) return undefined;
+  const keyProperty = arg.getProperty("key");
+  if (!keyProperty || !Node.isPropertyAssignment(keyProperty)) return undefined;
+  const keyLiteral = keyProperty.getInitializer();
+  if (!keyLiteral || !Node.isObjectLiteralExpression(keyLiteral)) return undefined;
+
+  const readString = (name: string): string | undefined => {
+    const property = keyLiteral.getProperty(name);
+    if (!property || !Node.isPropertyAssignment(property)) return undefined;
+    const initializer = property.getInitializer();
+    return initializer && Node.isStringLiteral(initializer)
+      ? initializer.getLiteralValue()
+      : undefined;
+  };
+
+  const partitionKey = readString("partitionKey");
+  if (!partitionKey) return undefined;
+  const sortKey = readString("sortKey");
+  return sortKey ? { partitionKey, sortKey } : { partitionKey };
 }
 
 /**

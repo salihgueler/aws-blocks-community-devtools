@@ -23,6 +23,11 @@ export interface ApiMethod {
   params: string[];
 }
 
+export interface KeySchema {
+  partitionKey: string;
+  sortKey?: string;
+}
+
 export interface DiscoveredBlock {
   /** Block class name, e.g. "DistributedTable" */
   type: string;
@@ -38,7 +43,11 @@ export interface DiscoveredBlock {
   configPreview: string | null;
   /** For ApiNamespace: methods discovered in the factory literal */
   methods?: ApiMethod[];
+  /** For DistributedTable: key fields extracted from the config literal */
+  keySchema?: KeySchema;
 }
+
+export type WriteMode = "create" | "edit";
 
 export interface ScopeInfo {
   /** First constructor arg of `new Scope(...)`, e.g. "some-useful-links" */
