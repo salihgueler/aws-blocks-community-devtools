@@ -98,6 +98,19 @@ export const setCloudUserEnabled = (stack: string, fullId: string, username: str
 export const deleteLocalRecord = (fullId: string, recordKey: string) =>
   postJson("/console-api/write/local-delete", { fullId, recordKey });
 
+export const putCloudItem = (
+  stack: string,
+  fullId: string,
+  item: Record<string, unknown>,
+  mode: "create" | "edit",
+) => postJson("/console-api/write/cloud-put", { stack, fullId, item, mode });
+
+export const putLocalRecord = (
+  fullId: string,
+  item: Record<string, unknown>,
+  mode: "create" | "edit",
+) => postJson("/console-api/write/local-put", { fullId, item, mode });
+
 export async function callRpc(method: string, params: unknown[]): Promise<RpcResponse> {
   const response = await fetch("/console-api/rpc", {
     method: "POST",

@@ -118,12 +118,36 @@ pre.code {
   font-family: var(--mono); line-height: 1.7; white-space: pre-wrap;
   word-break: break-word; padding: 4px 0;
 }
+.json-row { padding-left: 16px; }
+.json-toggle {
+  background: transparent; border: none; padding: 0; cursor: pointer;
+  color: inherit; font: inherit;
+}
+.json-toggle:hover .json-punct { color: var(--text); }
+.json-caret { color: var(--accent); margin-right: 4px; font-size: 10px; }
+.json-count { color: var(--text-dim); margin-left: 8px; font-size: 11px; }
 .json-key { color: var(--json-key); }
 .json-str { color: var(--json-str); }
 .json-num { color: var(--json-num); }
 .json-bool { color: var(--json-bool); }
 .json-null { color: var(--text-dim); font-style: italic; }
 .json-punct { color: var(--text-dim); }
+.card-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; margin-bottom: 10px;
+}
+.card-head h3 { margin: 0; }
+.editor { display: grid; gap: 10px; margin-bottom: 14px; }
+.editor-input { min-height: 120px; }
+.editor-problem {
+  color: #f2c4cf; background: #3a2430; border: 1px solid #7a4050;
+  padding: 6px 10px; border-radius: 6px; font-size: 13px; font-family: var(--mono);
+}
+.editor-actions { display: flex; gap: 8px; }
+.collapse-link {
+  background: transparent; border: none; padding: 0; cursor: pointer;
+  color: var(--accent); font-size: 11px; font-family: var(--mono);
+}
 .response-box {
   background: var(--bg); border: 1px solid var(--border);
   border-radius: 8px; padding: 12px; overflow-x: auto;

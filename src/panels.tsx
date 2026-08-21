@@ -3,12 +3,15 @@ import {
   callRpc,
   deleteCloudItem,
   deleteLocalRecord,
+  putCloudItem,
+  putLocalRecord,
   setCloudUserEnabled,
   useBlockData,
   type DataQuery,
 } from "./api";
 import { JsonView } from "./JsonView";
-import type { ApiMethod, RpcResponse } from "../shared/types";
+import { RecordEditor, emptyRecord } from "./RecordEditor";
+import type { ApiMethod, KeySchema, RpcResponse, WriteMode } from "../shared/types";
 
 /** One-line preview for a collapsed record: top-level keys with scalar values. */
 function summarize(value: unknown): string {
@@ -29,20 +32,49 @@ export function DataBrowser({
   query,
   blockType,
   unlocked,
+  keySchema,
 }: {
   fullId: string;
   query: DataQuery;
   blockType: string;
   unlocked: boolean;
+  keySchema: KeySchema | undefined;
 }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const { data, error, loading } = useBlockData(fullId, query, refreshKey);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [editor, setEditor] = useState<
+    { mode: WriteMode; initial: unknown } | null
+  >(null);
+  const [saving, setSaving] = useState(false);
   const isCloud = query.env === "cloud";
   const isCognito = isCloud && blockType.startsWith("Auth");
   const canWrite = isCloud ? unlocked : true;
+  const isTable = blockType === "DistributedTable";
   const title = isCloud ? "Cloud data · read-only unless unlocked" : "Local data";
+
+  async function saveRecord(item: Record<string, unknown>) {
+    if (!editor) return;
+    if (
+      isCloud &&
+      !window.confirm(`${editor.mode === "create" ? "Create" : "Overwrite"} this record in PRODUCTION?`)
+    )
+      return;
+    setSaving(true);
+    try {
+      const result = isCloud
+        ? await putCloudItem(query.stack ?? "", fullId, item, editor.mode)
+        : await putLocalRecord(fullId, item, editor.mode);
+      setNotice(result.message);
+      if (result.ok) {
+        setEditor(null);
+        setRefreshKey((k) => k + 1);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function removeRecord(recordKey: string) {
     const target = isCloud ? "PRODUCTION" : "local mock";
@@ -68,11 +100,31 @@ export function DataBrowser({
   }
   return (
     <div className="card">
-      <h3>
-        {title} · {data.source} · {data.totalRecords} record{data.totalRecords === 1 ? "" : "s"}
-        {data.redacted ? " · secrets redacted" : ""}
-      </h3>
+      <div className="card-head">
+        <h3>
+          {title} · {data.source} · {data.totalRecords} record{data.totalRecords === 1 ? "" : "s"}
+          {data.redacted ? " · secrets redacted" : ""}
+        </h3>
+        {canWrite && isTable && !editor && (
+          <button
+            className="row-action"
+            onClick={() => setEditor({ mode: "create", initial: emptyRecord(keySchema) })}
+          >
+            + New record
+          </button>
+        )}
+      </div>
       {notice && <div className="notice">{notice}</div>}
+      {editor && (
+        <RecordEditor
+          mode={editor.mode}
+          keySchema={keySchema}
+          initialValue={editor.initial}
+          busy={saving}
+          onSave={saveRecord}
+          onCancel={() => setEditor(null)}
+        />
+      )}
       {data.records.length === 0 ? (
         <div className="empty">Store is empty.</div>
       ) : (
@@ -94,17 +146,26 @@ export function DataBrowser({
                 <tr key={record.key}>
                   <td className="key-cell">{record.key}</td>
                   <td>
-                    <button
-                      className="value-toggle"
-                      onClick={() => setExpandedKey(expanded ? null : record.key)}
-                      aria-expanded={expanded}
-                    >
-                      {expanded ? (
+                    {expanded ? (
+                      <div>
+                        <button
+                          className="collapse-link"
+                          onClick={() => setExpandedKey(null)}
+                          aria-expanded={true}
+                        >
+                          ▾ collapse
+                        </button>
                         <JsonView value={record.value} />
-                      ) : (
+                      </div>
+                    ) : (
+                      <button
+                        className="value-toggle"
+                        onClick={() => setExpandedKey(record.key)}
+                        aria-expanded={false}
+                      >
                         <span className="value-summary">{summarize(record.value)}</span>
-                      )}
-                    </button>
+                      </button>
+                    )}
                   </td>
                   {canWrite && (
                     <td className="actions-cell">
@@ -116,12 +177,24 @@ export function DataBrowser({
                           {userEnabled ? "Disable" : "Enable"}
                         </button>
                       ) : (
-                        <button
-                          className="row-action danger"
-                          onClick={() => removeRecord(record.key)}
-                        >
-                          Delete
-                        </button>
+                        <>
+                          {isTable && !data.redacted && (
+                            <button
+                              className="row-action"
+                              onClick={() =>
+                                setEditor({ mode: "edit", initial: record.value })
+                              }
+                            >
+                              Edit
+                            </button>
+                          )}
+                          <button
+                            className="row-action danger"
+                            onClick={() => removeRecord(record.key)}
+                          >
+                            Delete
+                          </button>
+                        </>
                       )}
                     </td>
                   )}

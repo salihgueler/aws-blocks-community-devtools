@@ -157,6 +157,7 @@ function BlockDetail({
             query={{ env: "cloud", stack: stackName, blockType: block.type }}
             blockType={block.type}
             unlocked={unlocked}
+            keySchema={block.keySchema}
           />
         ) : (
           <div className="card">
@@ -175,6 +176,7 @@ function BlockDetail({
               query={{ env: "local" }}
               blockType={block.type}
               unlocked={true}
+              keySchema={block.keySchema}
             />
           )}
         </>
