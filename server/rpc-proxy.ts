@@ -4,14 +4,19 @@ const LOCAL_RPC_URL = "http://127.0.0.1:3000/aws-blocks/api";
 const RPC_TIMEOUT_MS = 30_000;
 
 /**
- * Forward a JSON-RPC call to the local Blocks dev server. Proxying (rather
- * than calling from the browser) keeps the UI same-origin and gives us one
- * seam to point at the deployed execute-api URL in Phase 3.
+ * Forward a JSON-RPC call to a Blocks API. `endpoint` is the local dev server
+ * by default, or the deployed stack's ApiUrl output for cloud mode — this
+ * function is the single seam both modes share.
  *
  * Method names are validated against the JSON-RPC `namespace.method` shape;
  * params pass through verbatim (positional array, per the wire protocol).
+ * Cookies are forwarded when supplied so auth-gated methods are reachable.
  */
-export async function proxyRpc(request: RpcRequest): Promise<RpcResponse> {
+export async function proxyRpc(
+  request: RpcRequest,
+  endpoint: string = LOCAL_RPC_URL,
+  cookie?: string,
+): Promise<RpcResponse> {
   if (!/^[A-Za-z_$][\w$]*\.[A-Za-z_$][\w$]*$/.test(request.method)) {
     return {
       ok: false,
@@ -22,9 +27,12 @@ export async function proxyRpc(request: RpcRequest): Promise<RpcResponse> {
   }
   const started = performance.now();
   try {
-    const response = await fetch(LOCAL_RPC_URL, {
+    const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(cookie ? { Cookie: cookie } : {}),
+      },
       body: JSON.stringify({
         jsonrpc: "2.0",
         method: request.method,
@@ -45,7 +53,7 @@ export async function proxyRpc(request: RpcRequest): Promise<RpcResponse> {
     return {
       ok: false,
       status: 502,
-      body: { error: `local Blocks server unreachable: ${message}` },
+      body: { error: `Blocks API unreachable at ${endpoint}: ${message}` },
       durationMs: Math.round(performance.now() - started),
     };
   }

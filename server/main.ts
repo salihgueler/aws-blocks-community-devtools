@@ -37,6 +37,13 @@ const profile = args.profile ?? process.env.AWS_PROFILE ?? "default";
 const region = args.region ?? process.env.AWS_REGION;
 const port = Number(args.port ?? 4401);
 
+/** ApiNamespace ids this project declares — the dev-server identity signal. */
+function apiNamespaces(): string[] {
+  return discoverBlocks(projectPath)
+    .blocks.filter((block) => block.type === "ApiNamespace")
+    .map((block) => block.id);
+}
+
 async function routePost(url: URL, body: string) {
   let parsed: Record<string, unknown>;
   try {
@@ -51,7 +58,26 @@ async function routePost(url: URL, body: string) {
       if (typeof parsed.method !== "string" || !Array.isArray(parsed.params)) {
         return json({ error: "expected { method: string, params: unknown[] }" }, 400);
       }
-      return json(await proxyRpc({ method: parsed.method, params: parsed.params }));
+      // Cloud mode targets the deployed ApiUrl; local uses the proxy default.
+      let endpoint: string | undefined;
+      if (parsed.env === "cloud") {
+        const env = await detectEnvironment(projectPath, profile, region);
+        if (!env.cloud.apiUrl) {
+          return json(
+            { error: "no deployed ApiUrl found in the stack outputs" },
+            400,
+          );
+        }
+        endpoint = env.cloud.apiUrl;
+      }
+      const cookie = typeof parsed.cookie === "string" ? parsed.cookie : undefined;
+      return json(
+        await proxyRpc(
+          { method: parsed.method, params: parsed.params },
+          endpoint,
+          cookie,
+        ),
+      );
     }
     case "/console-api/unlock": {
       setUnlocked(parsed.unlock === true);
@@ -119,30 +145,36 @@ async function route(method: string, url: URL, body: string) {
   const dataMatch = url.pathname.match(/^\/console-api\/data\/([\w.-]+)$/);
   if (dataMatch?.[1]) {
     const fullId = dataMatch[1];
+    const inventory = discoverBlocks(projectPath);
+    // Only discovered blocks are addressable: without this, the sibling-store
+    // fallback would let an arbitrary prefix resolve into someone's store.
+    const known = inventory.blocks.find((b) => b.fullId === fullId);
+    if (!known) return json({ error: `unknown block: ${fullId}` }, 404);
+    const store = url.searchParams.get("store") ?? undefined;
     if (url.searchParams.get("env") === "cloud") {
       const stackName = url.searchParams.get("stack");
-      const blockType = url.searchParams.get("type") ?? "";
       if (!stackName || !/^[\w-]+$/.test(stackName)) {
         return json({ error: "cloud data requires a valid ?stack= name" }, 400);
       }
       return json(
-        await readCloudBlockData(stackName, fullId, blockType, {
-          profile,
-          ...(region ? { region } : {}),
-        }),
+        await readCloudBlockData(
+          stackName,
+          fullId,
+          known.type,
+          { profile, ...(region ? { region } : {}) },
+          store,
+        ),
       );
     }
-    // Only discovered blocks are addressable: without this, the sibling-store
-    // fallback would let an arbitrary prefix resolve into someone's store.
-    const known = discoverBlocks(projectPath).blocks.find((b) => b.fullId === fullId);
-    if (!known) return json({ error: `unknown block: ${fullId}` }, 404);
-    return json(readBlockData(projectPath, fullId));
+    return json(readBlockData(projectPath, fullId, store));
   }
   switch (url.pathname) {
     case "/console-api/inventory":
       return json(discoverBlocks(projectPath));
     case "/console-api/environment":
-      return json(await detectEnvironment(projectPath, profile, region));
+      return json(
+        await detectEnvironment(projectPath, profile, region, apiNamespaces()),
+      );
     case "/console-api/meta":
       return json({
         projectPath,
