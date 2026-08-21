@@ -43,28 +43,87 @@ export function stackNameCandidates(projectPath: string): string[] {
   return candidates;
 }
 
-export async function detectLocal(projectPath: string): Promise<LocalEnvStatus> {
+export async function detectLocal(
+  projectPath: string,
+  expectedNamespaces: string[] = [],
+): Promise<LocalEnvStatus> {
   const bbDataPresent = existsSync(join(projectPath, ".bb-data"));
   let serverUp = false;
+  let namespaces: string[] = [];
   try {
-    // JSON-RPC probe: an unknown method still proves the Blocks server is
-    // answering (errors come back as HTTP 200 with an error body).
+    // Probing a deliberately unknown namespace is side-effect free and the
+    // error names every namespace the running server exposes:
+    //   "Method not found: API 'x' not found. Available: api, admin"
+    // That is the only identity signal the dev server offers — it cannot
+    // confirm the project, but a mismatch proves it is a different one.
     const response = await fetch(`${LOCAL_BLOCKS_URL}/aws-blocks/api`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         jsonrpc: "2.0",
-        method: "console.__probe",
+        method: "__blocksConsoleProbe__.__probe__",
         params: [],
         id: 1,
       }),
       signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
     });
     serverUp = response.ok;
+    if (serverUp) {
+      const body = (await response.json()) as {
+        error?: { message?: string };
+      };
+      const match = /Available:\s*(.+)$/.exec(body.error?.message ?? "");
+      if (match?.[1]) {
+        namespaces = match[1]
+          .split(",")
+          .map((name) => name.trim())
+          .filter(Boolean);
+      }
+    }
   } catch {
     serverUp = false;
   }
-  return { serverUp, serverUrl: LOCAL_BLOCKS_URL, bbDataPresent };
+  // null = cannot tell (no namespaces reported, or nothing to compare against)
+  let matchesProject: boolean | null = null;
+  if (serverUp && namespaces.length > 0 && expectedNamespaces.length > 0) {
+    matchesProject = expectedNamespaces.every((name) => namespaces.includes(name));
+  }
+  // Namespace names are weak evidence — most projects call theirs "api". The
+  // dev server also serves the project's own frontend, so when the project
+  // ships a static index.html with a <title>, comparing it against what :3000
+  // actually serves is a decisive check (and catches a foreign server that
+  // happens to share namespace names).
+  if (serverUp) {
+    const expectedTitle = readProjectTitle(projectPath);
+    if (expectedTitle) {
+      const servedTitle = await fetchServedTitle();
+      if (servedTitle !== null) {
+        matchesProject = servedTitle.trim() === expectedTitle.trim();
+      }
+    }
+  }
+  return { serverUp, serverUrl: LOCAL_BLOCKS_URL, bbDataPresent, namespaces, matchesProject };
+}
+
+/** <title> from the project's static index.html, when it has one. */
+function readProjectTitle(projectPath: string): string | null {
+  const indexPath = join(projectPath, "index.html");
+  if (!existsSync(indexPath)) return null;
+  const match = /<title>([^<]*)<\/title>/i.exec(readFileSync(indexPath, "utf8"));
+  return match?.[1] ?? null;
+}
+
+async function fetchServedTitle(): Promise<string | null> {
+  try {
+    const response = await fetch(LOCAL_BLOCKS_URL, {
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    });
+    if (!response.ok) return null;
+    const match = /<title>([^<]*)<\/title>/i.exec(await response.text());
+    return match?.[1] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function detectCloud(
@@ -81,6 +140,7 @@ export async function detectCloud(
     accountId: null,
     stackStatus: null,
     error: null,
+    apiUrl: null,
   };
   try {
     // The SDK's top-level `profile` option resolves credentials AND region
@@ -102,6 +162,10 @@ export async function detectCloud(
           base.stackFound = true;
           base.stackName = stackName;
           base.stackStatus = stack.StackStatus ?? null;
+          // The JSON-RPC endpoint of the deployed API, published as an output.
+          base.apiUrl =
+            stack.Outputs?.find((output) => output.OutputKey === "ApiUrl")
+              ?.OutputValue ?? null;
           break;
         }
       } catch (error) {
@@ -120,9 +184,10 @@ export async function detectEnvironment(
   projectPath: string,
   profile: string,
   region: string | undefined,
+  expectedNamespaces: string[] = [],
 ): Promise<EnvironmentStatus> {
   const [local, cloud] = await Promise.all([
-    detectLocal(projectPath),
+    detectLocal(projectPath, expectedNamespaces),
     detectCloud(projectPath, profile, region),
   ]);
   return { local, cloud };

@@ -72,6 +72,14 @@ export interface LocalEnvStatus {
   serverUrl: string;
   /** .bb-data/ exists (mock state persisted on disk) */
   bbDataPresent: boolean;
+  /** Namespaces the running dev server reports exposing */
+  namespaces: string[];
+  /**
+   * true  = server exposes every namespace this project declares
+   * false = definitely a different project's dev server on the port
+   * null  = cannot tell (no namespaces reported / nothing to compare)
+   */
+  matchesProject: boolean | null;
 }
 
 export interface CloudEnvStatus {
@@ -82,8 +90,9 @@ export interface CloudEnvStatus {
   region: string | null;
   accountId: string | null;
   stackStatus: string | null;
-  /** Logical block fullId -> physical resource (populated in Phase 3) */
   error: string | null;
+  /** Deployed JSON-RPC endpoint from the stack's ApiUrl output */
+  apiUrl: string | null;
 }
 
 export interface EnvironmentStatus {
@@ -106,6 +115,10 @@ export interface BlockDataPage {
   /** True when values were redacted (auth secrets, session tokens) */
   redacted: boolean;
   error: string | null;
+  /** Every store this block can read (a block may shard across several) */
+  stores: string[];
+  /** Which entry of `stores` produced this page */
+  activeStore: string | null;
 }
 
 export interface RpcRequest {
