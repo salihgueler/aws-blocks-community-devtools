@@ -11,8 +11,27 @@ import type {
   LocalEnvStatus,
 } from "../shared/types.js";
 
-const LOCAL_BLOCKS_URL = "http://127.0.0.1:3000";
+const DEFAULT_LOCAL_PORT = 3000;
 const PROBE_TIMEOUT_MS = 1500;
+
+/**
+ * The local dev server port is per project, not a constant: each project's
+ * `aws-blocks/scripts/server.ts` passes its own `port:` (tabletop uses 3001
+ * so its Vite client can own 3000). Read it rather than assuming.
+ */
+export function resolveLocalPort(projectPath: string): number {
+  const scriptPath = join(projectPath, "aws-blocks", "scripts", "server.ts");
+  if (!existsSync(scriptPath)) return DEFAULT_LOCAL_PORT;
+  const match = /\bport\s*:\s*(\d{2,5})\b/.exec(readFileSync(scriptPath, "utf8"));
+  const port = match?.[1] ? Number(match[1]) : NaN;
+  return Number.isInteger(port) && port > 0 && port < 65536
+    ? port
+    : DEFAULT_LOCAL_PORT;
+}
+
+export function localBlocksUrl(projectPath: string): string {
+  return `http://127.0.0.1:${resolveLocalPort(projectPath)}`;
+}
 
 /**
  * Deployed stack name candidates, mirroring @aws-blocks/core getStackName():
@@ -48,6 +67,7 @@ export async function detectLocal(
   expectedNamespaces: string[] = [],
 ): Promise<LocalEnvStatus> {
   const bbDataPresent = existsSync(join(projectPath, ".bb-data"));
+  const baseUrl = localBlocksUrl(projectPath);
   let serverUp = false;
   let namespaces: string[] = [];
   try {
@@ -56,7 +76,7 @@ export async function detectLocal(
     //   "Method not found: API 'x' not found. Available: api, admin"
     // That is the only identity signal the dev server offers — it cannot
     // confirm the project, but a mismatch proves it is a different one.
-    const response = await fetch(`${LOCAL_BLOCKS_URL}/aws-blocks/api`, {
+    const response = await fetch(`${baseUrl}/aws-blocks/api`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -96,13 +116,13 @@ export async function detectLocal(
   if (serverUp) {
     const expectedTitle = readProjectTitle(projectPath);
     if (expectedTitle) {
-      const servedTitle = await fetchServedTitle();
+      const servedTitle = await fetchServedTitle(baseUrl);
       if (servedTitle !== null) {
         matchesProject = servedTitle.trim() === expectedTitle.trim();
       }
     }
   }
-  return { serverUp, serverUrl: LOCAL_BLOCKS_URL, bbDataPresent, namespaces, matchesProject };
+  return { serverUp, serverUrl: baseUrl, bbDataPresent, namespaces, matchesProject };
 }
 
 /** <title> from the project's static index.html, when it has one. */
@@ -113,9 +133,9 @@ function readProjectTitle(projectPath: string): string | null {
   return match?.[1] ?? null;
 }
 
-async function fetchServedTitle(): Promise<string | null> {
+async function fetchServedTitle(baseUrl: string): Promise<string | null> {
   try {
-    const response = await fetch(LOCAL_BLOCKS_URL, {
+    const response = await fetch(baseUrl, {
       signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
     });
     if (!response.ok) return null;

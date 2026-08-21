@@ -1,6 +1,5 @@
 import type { RpcRequest, RpcResponse } from "../shared/types.js";
 
-const LOCAL_RPC_URL = "http://127.0.0.1:3000/aws-blocks/api";
 const RPC_TIMEOUT_MS = 30_000;
 
 /**
@@ -14,7 +13,7 @@ const RPC_TIMEOUT_MS = 30_000;
  */
 export async function proxyRpc(
   request: RpcRequest,
-  endpoint: string = LOCAL_RPC_URL,
+  endpoint: string,
   cookie?: string,
 ): Promise<RpcResponse> {
   if (!/^[A-Za-z_$][\w$]*\.[A-Za-z_$][\w$]*$/.test(request.method)) {

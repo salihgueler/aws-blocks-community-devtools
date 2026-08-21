@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { parseArgs } from "node:util";
 import { resolve } from "node:path";
 import { discoverBlocks } from "./discovery.js";
-import { detectEnvironment } from "./detect.js";
+import { detectEnvironment, localBlocksUrl } from "./detect.js";
 import { readBlockData } from "./local-data.js";
 import { readCloudBlockData } from "./cloud-data.js";
 import { proxyRpc } from "./rpc-proxy.js";
@@ -59,7 +59,8 @@ async function routePost(url: URL, body: string) {
         return json({ error: "expected { method: string, params: unknown[] }" }, 400);
       }
       // Cloud mode targets the deployed ApiUrl; local uses the proxy default.
-      let endpoint: string | undefined;
+      // Local endpoint uses the project's own dev-server port, not a constant.
+      let endpoint = `${localBlocksUrl(projectPath)}/aws-blocks/api`;
       if (parsed.env === "cloud") {
         const env = await detectEnvironment(projectPath, profile, region);
         if (!env.cloud.apiUrl) {
