@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { setUnlock, useEnvironment, useInventory } from "./api";
 import { DataBrowser, RpcPlayground } from "./panels";
+import { BlockTile, LogoMark } from "./tiles";
 import type { DiscoveredBlock, EnvMode } from "../shared/types";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -58,7 +59,10 @@ export function App() {
   return (
     <div className="layout">
       <header className="topbar">
-        <h1>Blocks Console</h1>
+        <span className="brand">
+          <LogoMark />
+          <h1>Blocks Console</h1>
+        </span>
         <span className="project">
           {inventory.data ? inventory.data.projectName : "loading…"}
         </span>
@@ -102,7 +106,10 @@ export function App() {
                   className={`block-item ${block.fullId === selectedFullId ? "selected" : ""}`}
                   onClick={() => selectBlock(block.fullId)}
                 >
-                  {block.id} <span className="type">· {block.type}</span>
+                  <BlockTile type={block.type} category={block.category} size={22} />
+                  <span className="block-item-text">
+                    {block.id} <span className="type">{block.type}</span>
+                  </span>
                 </button>
               ))}
             </div>
@@ -145,10 +152,15 @@ function BlockDetail({
 }) {
   const hasStore = ["data", "auth", "storage", "config"].includes(block.category);
   return (
-    <>
-      <h2>{block.id}</h2>
-      <div className="meta">
-        {block.type} · {block.fullId} · {block.file}:{block.line} · viewing: {mode}
+    <div className="detail-enter" key={block.fullId}>
+      <div className="detail-head">
+        <BlockTile type={block.type} category={block.category} size={40} />
+        <div>
+          <h2>{block.id}</h2>
+          <div className="meta">
+            {block.type} · {block.fullId} · {block.file}:{block.line} · viewing: {mode}
+          </div>
+        </div>
       </div>
       {mode === "cloud" ? (
         hasStore && stackName ? (
@@ -187,6 +199,6 @@ function BlockDetail({
           <pre className="code">{block.configPreview}</pre>
         </div>
       )}
-    </>
+    </div>
   );
 }
