@@ -132,6 +132,10 @@ async function route(method: string, url: URL, body: string) {
         }),
       );
     }
+    // Only discovered blocks are addressable: without this, the sibling-store
+    // fallback would let an arbitrary prefix resolve into someone's store.
+    const known = discoverBlocks(projectPath).blocks.find((b) => b.fullId === fullId);
+    if (!known) return json({ error: `unknown block: ${fullId}` }, 404);
     return json(readBlockData(projectPath, fullId));
   }
   switch (url.pathname) {
