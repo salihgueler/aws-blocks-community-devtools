@@ -11,8 +11,8 @@
   --danger: #e0606c;
   --json-key: #79b8ff;
   --json-str: #7ee2a8;
-  --json-num: #f0a45d;
-  --json-bool: #c792ea;
+  --json-num: #ef8e7d;
+  --json-bool: #e0a83c;
   --sans: -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
   --mono: "SF Mono", ui-monospace, Menlo, monospace;
   color-scheme: dark;
@@ -65,7 +65,11 @@ textarea { caret-color: var(--accent); }
 .env-pill.active { border-color: var(--accent); color: var(--text); background: var(--panel-2); }
 .env-pill.unavailable { opacity: 0.5; cursor: not-allowed; }
 .env-pill .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
-.dot.up { background: var(--ok); box-shadow: 0 0 6px 1px color-mix(in srgb, var(--ok) 70%, transparent); }
+.dot.up {
+  background: var(--ok);
+  outline: 2px solid color-mix(in srgb, var(--ok) 30%, transparent);
+  outline-offset: 1px;
+}
 .dot.down { background: var(--warn); }
 .env-pill:not(:disabled):hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
 .env-pill:not(:disabled):active { transform: translateY(1px); }
@@ -128,22 +132,56 @@ pre.code {
 .method-chip.clickable { cursor: pointer; }
 .method-chip.clickable:hover { border-color: var(--accent); }
 .method-chip.selected { border-color: var(--accent); background: var(--bg); }
-.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
 .data-table th {
   text-align: left; color: var(--text-dim); font-weight: 600;
   padding: 8px; border-bottom: 1px solid var(--border);
 }
-.data-table td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.data-table th:first-child { width: 30%; }
+.data-table th:last-child { width: 132px; }
+.data-table td {
+  padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top;
+  overflow: hidden;
+}
 .data-table tbody tr:hover { background: color-mix(in srgb, var(--panel-2) 55%, transparent); }
-.key-cell { font-family: var(--mono); color: var(--text-dim); max-width: 320px; word-break: break-all; }
+.key-cell { font-family: var(--mono); max-width: 320px; }
+.key-parts { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.key-part {
+  display: inline-block; padding: 1px 8px; border-radius: 5px;
+  font-size: 13px; max-width: 100%; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.key-part.pk {
+  background: color-mix(in srgb, var(--json-key) 14%, transparent);
+  color: color-mix(in srgb, var(--json-key) 75%, #ffffff);
+}
+.key-part.sk {
+  background: color-mix(in srgb, var(--json-str) 12%, transparent);
+  color: color-mix(in srgb, var(--json-str) 70%, #ffffff);
+}
+.key-plain { color: var(--text-dim); word-break: break-all; }
 .value-toggle {
   display: block; width: 100%; text-align: left; background: transparent;
   border: none; padding: 0; cursor: pointer; color: inherit;
 }
 .value-summary {
-  display: block; font-family: var(--mono); color: var(--text-dim);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 640px;
+  display: flex; align-items: baseline; gap: 12px;
+  font-family: var(--mono); min-width: 0; overflow: hidden;
 }
+.summary-pair {
+  display: flex; align-items: baseline; gap: 4px;
+  min-width: 0; flex: 0 1 auto; white-space: nowrap;
+}
+.summary-pair .json-key { flex: 0 0 auto; }
+/* The value box is what shrinks and clips, so no text node escapes the cell */
+.summary-pair .json-str,
+.summary-pair .json-num,
+.summary-pair .json-bool,
+.summary-pair .json-null,
+.summary-pair .json-punct {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.value-summary .json-count { flex: 0 0 auto; margin-left: 0; }
 .json-view {
   font-family: var(--mono); line-height: 1.7; white-space: pre-wrap;
   word-break: break-word; padding: 4px 0;
@@ -155,7 +193,7 @@ pre.code {
 }
 .json-toggle:hover .json-punct { color: var(--text); }
 .json-caret { color: var(--accent); margin-right: 4px; font-size: 10px; }
-.json-count { color: var(--text-dim); margin-left: 8px; font-size: 11px; }
+.json-count { color: var(--text-dim); margin-left: 8px; font-size: 13px; }
 .json-key { color: var(--json-key); }
 .json-str { color: var(--json-str); }
 .json-num { color: var(--json-num); }
@@ -176,7 +214,7 @@ pre.code {
 .editor-actions { display: flex; gap: 8px; }
 .collapse-link {
   background: transparent; border: none; padding: 0; cursor: pointer;
-  color: var(--accent); font-size: 11px; font-family: var(--mono);
+  color: var(--accent); font-size: 13px; font-family: var(--mono);
 }
 .response-box {
   background: var(--bg); border: 1px solid var(--border);

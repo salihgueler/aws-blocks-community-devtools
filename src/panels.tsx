@@ -13,18 +13,96 @@ import { JsonView } from "./JsonView";
 import { RecordEditor, emptyRecord } from "./RecordEditor";
 import type { ApiMethod, KeySchema, RpcResponse, WriteMode } from "../shared/types";
 
-/** One-line preview for a collapsed record: top-level keys with scalar values. */
-function summarize(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "";
-  if (Array.isArray(value)) return `[ ${value.length} item${value.length === 1 ? "" : "s"} ]`;
-  const parts = Object.entries(value).map(([key, field]) => {
-    if (field === null || typeof field !== "object") {
-      const text = JSON.stringify(field) ?? "";
-      return `${key}: ${text.length > 24 ? `${text.slice(0, 24)}…` : text}`;
+/** Collapsed value preview: same syntax colors as the expanded tree. */
+const SUMMARY_PAIRS = 3;
+const SCALAR_CLAMP = 18;
+
+function ValueSummary({ value }: { value: unknown }) {
+  if (value === null || typeof value !== "object") {
+    return <span className="value-summary"><Scalar value={value} /></span>;
+  }
+  if (Array.isArray(value)) {
+    return (
+      <span className="value-summary">
+        <span className="json-punct">[ {value.length} item{value.length === 1 ? "" : "s"} ]</span>
+      </span>
+    );
+  }
+  const entries = Object.entries(value);
+  // Bounded pair count plus flex-shrink clipping: overflow:hidden alone only
+  // hides the paint, the text nodes still run under the actions column.
+  const shown = entries.slice(0, SUMMARY_PAIRS);
+  const hidden = entries.length - shown.length;
+  return (
+    <span className="value-summary">
+      {shown.map(([key, field]) => (
+        <span key={key} className="summary-pair">
+          <span className="json-key">{key}</span>
+          <span className="json-punct">:</span>
+          <SummaryValue value={field} />
+        </span>
+      ))}
+      {hidden > 0 && <span className="json-count">+{hidden}</span>}
+    </span>
+  );
+}
+
+function SummaryValue({ value }: { value: unknown }) {
+  if (value !== null && typeof value === "object") {
+    return (
+      <span className="json-punct">
+        {Array.isArray(value) ? `[${value.length}]` : "{…}"}
+      </span>
+    );
+  }
+  return <Scalar value={value} clamp />;
+}
+
+function Scalar({ value, clamp = false }: { value: unknown; clamp?: boolean }) {
+  if (value === null) return <span className="json-null">null</span>;
+  switch (typeof value) {
+    case "string": {
+      const text = clamp && value.length > SCALAR_CLAMP ? `${value.slice(0, SCALAR_CLAMP)}…` : value;
+      return <span className="json-str">"{text}"</span>;
     }
-    return `${key}: ${Array.isArray(field) ? `[${field.length}]` : "{…}"}`;
-  });
-  return parts.join("  ·  ");
+    case "number":
+      return <span className="json-num">{String(value)}</span>;
+    case "boolean":
+      return <span className="json-bool">{String(value)}</span>;
+    default:
+      return <span className="json-null">{String(value)}</span>;
+  }
+}
+
+/**
+ * Record keys arrive as the store's serialized form — local:
+ * '["SLUG","alice-…"]', cloud: 'SLUG · alice-…'. Render both as
+ * labeled colored segments instead of raw serialization.
+ */
+function KeyCell({ recordKey }: { recordKey: string }) {
+  let parts: string[] | null = null;
+  if (recordKey.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(recordKey);
+      if (Array.isArray(parsed) && parsed.every((p) => typeof p === "string")) {
+        parts = parsed;
+      }
+    } catch {
+      parts = null;
+    }
+  } else if (recordKey.includes(" · ")) {
+    parts = recordKey.split(" · ");
+  }
+  if (!parts) return <span className="key-plain">{recordKey}</span>;
+  return (
+    <span className="key-parts">
+      {parts.map((part, index) => (
+        <span key={index} className={`key-part ${index === 0 ? "pk" : "sk"}`}>
+          {part}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 export function DataBrowser({
@@ -144,7 +222,7 @@ export function DataBrowser({
                 : true;
               return (
                 <tr key={record.key}>
-                  <td className="key-cell">{record.key}</td>
+                  <td className="key-cell"><KeyCell recordKey={record.key} /></td>
                   <td>
                     {expanded ? (
                       <div>
@@ -163,7 +241,7 @@ export function DataBrowser({
                         onClick={() => setExpandedKey(record.key)}
                         aria-expanded={false}
                       >
-                        <span className="value-summary">{summarize(record.value)}</span>
+                        <ValueSummary value={record.value} />
                       </button>
                     )}
                   </td>
