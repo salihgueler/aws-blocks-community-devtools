@@ -84,8 +84,12 @@ function KeyCell({ recordKey }: { recordKey: string }) {
   if (recordKey.startsWith("[")) {
     try {
       const parsed = JSON.parse(recordKey);
-      if (Array.isArray(parsed) && parsed.every((p) => typeof p === "string")) {
-        parts = parsed;
+      // Numeric sort keys are common (timestamps), so accept numbers too.
+      if (
+        Array.isArray(parsed) &&
+        parsed.every((p) => typeof p === "string" || typeof p === "number")
+      ) {
+        parts = parsed.map(String);
       }
     } catch {
       parts = null;
