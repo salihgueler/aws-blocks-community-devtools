@@ -12,6 +12,7 @@ import {
   deleteLocalRecord,
   setCloudUserEnabled,
 } from "./writes.js";
+import { putCloudItem, putLocalRecord } from "./puts.js";
 
 /**
  * Console backend. Deliberately localhost-only: it holds no auth because it
@@ -73,6 +74,24 @@ async function routePost(url: URL, body: string) {
         return json({ error: "expected { stack, fullId, username, enabled }" }, 400);
       }
       return json(await setCloudUserEnabled(stack, fullId, username, enabled, cloudOptions));
+    }
+    case "/console-api/write/cloud-put": {
+      if (!isUnlocked()) return json({ error: "cloud writes are locked" }, 403);
+      const { stack, fullId, item, mode } = parsed;
+      if (typeof stack !== "string" || typeof fullId !== "string" || (mode !== "create" && mode !== "edit")) {
+        return json({ error: "expected { stack, fullId, item, mode: create|edit }" }, 400);
+      }
+      return json(await putCloudItem(stack, fullId, item, mode, cloudOptions));
+    }
+    case "/console-api/write/local-put": {
+      const { fullId, item, mode } = parsed;
+      if (typeof fullId !== "string" || (mode !== "create" && mode !== "edit")) {
+        return json({ error: "expected { fullId, item, mode: create|edit }" }, 400);
+      }
+      const block = discoverBlocks(projectPath).blocks.find((b) => b.fullId === fullId);
+      return json(
+        await putLocalRecord(projectPath, fullId, item, mode, block?.keySchema),
+      );
     }
     case "/console-api/write/local-delete": {
       const { fullId, recordKey } = parsed;
