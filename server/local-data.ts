@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join, resolve, sep } from "node:path";
 import type { BlockDataPage, DataRecord } from "../shared/types.js";
+import { SECRET_KEY_PATTERN, looksSecret, redactValue } from "./redact.js";
 
 /**
  * Reads a block's local mock state from .bb-data/<fullId>/.
@@ -15,30 +16,12 @@ import type { BlockDataPage, DataRecord } from "../shared/types.js";
  */
 
 const MAX_RECORDS = 500;
-const SECRET_KEY_PATTERN =
-  /secret|token|password|hash|code|challenge|session|auth|credential/i;
 
-/**
- * Content-based secret detection. Name-based redaction alone is a denylist:
- * it failed on the first unfamiliar project (a `<scope>-auth-users` store
- * shipped bcrypt hashes to the browser because no name token matched). These
- * patterns catch the value shapes themselves, so redaction fails safe no
- * matter what a project calls its stores.
- */
-const SECRET_VALUE_PATTERNS: RegExp[] = [
-  /\$2[aby]?\$\d{2}\$[./A-Za-z0-9]{53}/, // bcrypt
-  /\$argon2[id]{1,2}\$/, // argon2
-  /^\$?pbkdf2[-_$]/i, // pbkdf2
-  /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\./, // JWT
-  /-----BEGIN [A-Z ]*PRIVATE KEY-----/, // PEM private key
-  /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/, // AWS access key id
-];
-
-function looksSecret(value: string): boolean {
-  return SECRET_VALUE_PATTERNS.some((pattern) => pattern.test(value));
-}
-
-export function readBlockData(projectPath: string, fullId: string): BlockDataPage {
+export function readBlockData(
+  projectPath: string,
+  fullId: string,
+  store?: string,
+): BlockDataPage {
   const empty: BlockDataPage = {
     fullId,
     source: "",
@@ -46,41 +29,40 @@ export function readBlockData(projectPath: string, fullId: string): BlockDataPag
     totalRecords: 0,
     redacted: false,
     error: null,
+    stores: [],
+    activeStore: null,
   };
-  // fullId comes from the URL — refuse anything that could escape .bb-data/.
   const bbDataRoot = resolve(projectPath, ".bb-data");
-  let dir = resolve(bbDataRoot, fullId);
-  if (!dir.startsWith(bbDataRoot + sep)) {
+  // fullId comes from the URL — refuse anything that could escape .bb-data/.
+  const exact = resolve(bbDataRoot, fullId);
+  if (!exact.startsWith(bbDataRoot + sep)) {
     return { ...empty, error: "invalid block id" };
   }
-  if (!existsSync(dir)) {
-    // Some blocks shard their state into sibling stores rather than one
-    // directory named after the block (AuthBasic writes <fullId>-users and
-    // <fullId>-codes). Fall back to the first sibling and name it in `source`.
-    const siblings = existsSync(bbDataRoot)
-      ? readdirSync(bbDataRoot)
-          .filter((name) => name.startsWith(`${fullId}-`))
-          .filter((name) => {
-            // Skip siblings with no JSON payload (an unused -codes store),
-            // otherwise the block reports "no JSON files" despite having data.
-            const candidate = resolve(bbDataRoot, name);
-            return (
-              candidate.startsWith(bbDataRoot + sep) &&
-              statSync(candidate).isDirectory() &&
-              readdirSync(candidate).some((file) => file.endsWith(".json"))
-            );
-          })
-          .sort()
-      : [];
-    const first = siblings[0];
-    if (!first) {
-      return { ...empty, error: `no local data at .bb-data/${fullId}` };
-    }
-    dir = resolve(bbDataRoot, first);
-    if (!dir.startsWith(bbDataRoot + sep)) {
-      return { ...empty, error: "invalid block id" };
+
+  // A block may own several stores: its own directory and/or siblings, since
+  // some blocks shard state (AuthBasic writes <fullId>-users and -codes).
+  const stores: string[] = [];
+  if (existsSync(exact) && hasJson(exact)) stores.push(fullId);
+  if (existsSync(bbDataRoot)) {
+    for (const name of readdirSync(bbDataRoot).sort()) {
+      if (name === fullId || !name.startsWith(`${fullId}-`)) continue;
+      const candidate = resolve(bbDataRoot, name);
+      if (candidate.startsWith(bbDataRoot + sep) && hasJson(candidate)) {
+        stores.push(name);
+      }
     }
   }
+  empty.stores = stores;
+
+  const selected = store && stores.includes(store) ? store : stores[0];
+  if (!selected) {
+    return { ...empty, error: `no local data at .bb-data/${fullId}` };
+  }
+  const dir = resolve(bbDataRoot, selected);
+  if (!dir.startsWith(bbDataRoot + sep)) {
+    return { ...empty, error: "invalid store" };
+  }
+  empty.activeStore = selected;
 
   const files = readdirSync(dir).filter((name) => name.endsWith(".json"));
   const preferred =
@@ -108,7 +90,7 @@ export function readBlockData(projectPath: string, fullId: string): BlockDataPag
     if (bySchema) redactedAny = true;
     return {
       key: record.key,
-      value: bySchema ? redact(record.value) : record.value,
+      value: bySchema ? redactValue(record.value) : record.value,
     };
   });
   return {
@@ -118,7 +100,21 @@ export function readBlockData(projectPath: string, fullId: string): BlockDataPag
     totalRecords: all.length,
     redacted: redactedAny,
     error: null,
+    stores: empty.stores,
+    activeStore: empty.activeStore,
   };
+}
+
+/** A store directory is only usable if it actually holds a JSON payload. */
+function hasJson(dir: string): boolean {
+  try {
+    return (
+      statSync(dir).isDirectory() &&
+      readdirSync(dir).some((file) => file.endsWith(".json"))
+    );
+  } catch {
+    return false;
+  }
 }
 
 function normalize(parsed: unknown): DataRecord[] {
@@ -159,27 +155,3 @@ function unwrapNestedJson(value: unknown): unknown {
   return output;
 }
 
-function redact(value: unknown): unknown {
-  if (typeof value === "string") return "•••redacted•••";
-  if (Array.isArray(value)) return value.map(redact);
-  if (value !== null && typeof value === "object") {
-    const output: Record<string, unknown> = {};
-    for (const [key, field] of Object.entries(value)) {
-      output[key] = SECRET_KEY_PATTERN.test(key) ? "•••redacted•••" : redactShallow(field);
-    }
-    return output;
-  }
-  return value;
-}
-
-/** Keep non-secret scalar fields readable (usernames, emails, timestamps). */
-function redactShallow(value: unknown): unknown {
-  if (typeof value === "string") {
-    // Content check first: a 60-char bcrypt hash under an innocuous field
-    // name would otherwise pass the length test and leak.
-    if (looksSecret(value) || value.length > 120) return "•••redacted•••";
-    return value;
-  }
-  if (value !== null && typeof value === "object") return redact(value);
-  return value;
-}

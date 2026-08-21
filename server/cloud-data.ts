@@ -5,6 +5,7 @@ import {
   ListUsersCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import type { BlockDataPage, DataRecord } from "../shared/types.js";
+import { looksSecret, redactValue } from "./redact.js";
 import {
   resolveBlockResources,
   type CloudClientOptions,
@@ -24,6 +25,7 @@ export async function readCloudBlockData(
   blockFullId: string,
   blockType: string,
   options: CloudClientOptions,
+  store?: string,
 ): Promise<BlockDataPage> {
   const base: BlockDataPage = {
     fullId: blockFullId,
@@ -32,14 +34,23 @@ export async function readCloudBlockData(
     totalRecords: 0,
     redacted: false,
     error: null,
+    stores: [],
+    activeStore: null,
   };
   try {
     const resources = await resolveBlockResources(stackName, blockFullId, options);
-    if (blockType.startsWith("Auth") && resources.userPoolId) {
+    // A block can map to several physical stores (a table plus a sessions
+    // table, a user pool plus its client) — expose them all, not just [0].
+    base.stores = blockType.startsWith("Auth")
+      ? [...(resources.userPoolId ? [resources.userPoolId] : []), ...resources.tables]
+      : [...resources.tables, ...(resources.userPoolId ? [resources.userPoolId] : [])];
+    const selected =
+      store && base.stores.includes(store) ? store : base.stores[0];
+    base.activeStore = selected ?? null;
+    if (selected && selected === resources.userPoolId) {
       return await readCognitoUsers(resources.userPoolId, options, base);
     }
-    const table = resources.tables[0];
-    if (table) return await scanTable(table, options, base);
+    if (selected) return await scanTable(selected, options, base);
     base.error = `no readable cloud resource mapped for ${blockFullId}`;
   } catch (error) {
     base.error = error instanceof Error ? error.message : String(error);
@@ -56,20 +67,23 @@ async function scanTable(
   const page = await client.send(
     new ScanCommand({ TableName: tableName, Limit: SCAN_LIMIT }),
   );
-  const sensitive = SESSION_TABLE_PATTERN.test(tableName);
+  const sensitiveTable = SESSION_TABLE_PATTERN.test(tableName);
+  let redactedAny = sensitiveTable;
   const records: DataRecord[] = (page.Items ?? []).map((item, index) => {
     const key = [item.pk, item.sk].filter(Boolean).join(" · ") || String(index);
-    return {
-      key,
-      value: sensitive ? "•••redacted (session/secret table)•••" : item,
-    };
+    // Same boundary rule as the local reader: the table name is a hint, the
+    // value shape is the authority. A store nobody thought to name
+    // "sessions" still must not ship credentials to the browser.
+    const sensitive = sensitiveTable || looksSecret(JSON.stringify(item) ?? "");
+    if (sensitive) redactedAny = true;
+    return { key, value: sensitive ? redactValue(item) : item };
   });
   return {
     ...base,
     source: `dynamodb:${tableName}${page.LastEvaluatedKey ? ` (first ${SCAN_LIMIT})` : ""}`,
     records,
     totalRecords: page.Count ?? records.length,
-    redacted: sensitive,
+    redacted: redactedAny,
   };
 }
 
