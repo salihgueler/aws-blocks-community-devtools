@@ -13,7 +13,10 @@
     "dev:client": "vite",
     "dev": "concurrently -n server,client \"npm:dev:server\" \"npm:dev:client\"",
     "build": "tsc --noEmit && vite build",
-    "start": "tsx server/main.ts"
+    "start": "tsx server/main.ts",
+    "console": "tsx scripts/cli-entry.mts",
+    "mcp": "tsx scripts/mcp-entry.mts",
+    "verify:mcp": "tsx scripts/verify-mcp.mts"
   },
   "dependencies": {
     "@aws-sdk/client-cloudformation": "3.1114.0",
