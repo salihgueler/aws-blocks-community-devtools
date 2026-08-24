@@ -1,7 +1,6 @@
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
-import { parseArgs } from "node:util";
 import { resolve } from "node:path";
 import { discoverBlocks } from "./discovery.js";
 import { detectEnvironment, localBlocksUrl } from "./detect.js";
@@ -24,21 +23,19 @@ import { serveStatic } from "./static.js";
  * profile — credentials are resolved by the SDK, never stored or logged.
  */
 
-const { values: args } = parseArgs({
-  options: {
-    project: { type: "string", short: "p" },
-    profile: { type: "string" },
-    region: { type: "string" },
-    port: { type: "string" },
-  },
-});
+export interface HttpServerOptions {
+  projectPath: string;
+  profile: string;
+  region?: string | undefined;
+  port: number;
+}
 
-const projectPath = resolve(
-  args.project ?? process.env.BLOCKS_CONSOLE_PROJECT ?? process.cwd(),
-);
-const profile = args.profile ?? process.env.AWS_PROFILE ?? "default";
-const region = args.region ?? process.env.AWS_REGION;
-const port = Number(args.port ?? 4401);
+// Request handlers read these at call time, so the CLI can configure the
+// server before starting it instead of the module parsing argv on import
+// (which would also run when the MCP entry point imports this file).
+let projectPath = process.cwd();
+let profile = "default";
+let region: string | undefined;
 // dist/ sits beside server/ in both the repo and the published package.
 const DIST_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "dist");
 
@@ -227,8 +224,13 @@ const server = createServer(async (request, response) => {
   }
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`[blocks-console] backend on http://127.0.0.1:${port}`);
-  console.log(`[blocks-console] project: ${projectPath}`);
-  console.log(`[blocks-console] profile: ${profile}${region ? ` region: ${region}` : ""}`);
-});
+/** Starts the console HTTP server. Binds loopback only, never a public interface. */
+export function startHttpServer(options: HttpServerOptions): Promise<void> {
+  projectPath = resolve(options.projectPath);
+  profile = options.profile;
+  region = options.region;
+  return new Promise((resolveStarted, reject) => {
+    server.once("error", reject);
+    server.listen(options.port, "127.0.0.1", () => resolveStarted());
+  });
+}
