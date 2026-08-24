@@ -6,6 +6,13 @@ import { startMcpServer, WRITES_ENV } from "./mcp.js";
 import { resolveProject, type ProjectResolution } from "./project.js";
 import { detectEnvironment } from "./detect.js";
 import { discoverBlocks } from "./discovery.js";
+import {
+  connectTarget,
+  detectTargets,
+  serverEntry,
+  SERVER_KEY,
+  type ConnectMode,
+} from "./agent-config.js";
 
 /**
  * The CLI is an installer/launcher, not a second implementation: every
@@ -39,6 +46,9 @@ export async function runCli(argv: string[]): Promise<number> {
       // Node's parseArgs has no boolean negation, so the flag is declared
       // in its negative form rather than as --open with an implicit --no-open.
       "no-open": { type: "boolean", default: false },
+      local: { type: "boolean", default: false },
+      "dry-run": { type: "boolean", default: false },
+      agent: { type: "string" },
       help: { type: "boolean", short: "h" },
     },
     allowPositionals: false,
@@ -62,6 +72,13 @@ export async function runCli(argv: string[]): Promise<number> {
     await doctor(projectPath, profile, region);
     return 0;
   }
+  if (command === "connect") {
+    return connect({
+      mode: values.local ? "local" : "published",
+      dryRun: values["dry-run"] === true,
+      only: values.agent,
+    });
+  }
   if (command !== "serve") {
     console.error(`Unknown command: ${command}\n`);
     printHelp();
@@ -81,6 +98,41 @@ export async function runCli(argv: string[]): Promise<number> {
   console.log(`  aws      profile ${profile}${region ? `, region ${region}` : ""}`);
   if (!values["no-open"]) openBrowser(url);
   return 0;
+}
+
+/** Registers the MCP server with every installed agent. */
+function connect(options: { mode: ConnectMode; dryRun: boolean; only?: string | undefined }): number {
+  const detected = detectTargets().filter(
+    (target) => !options.only || target.id === options.only,
+  );
+  if (detected.length === 0) {
+    console.error(
+      options.only
+        ? `No installed agent with id '${options.only}'.`
+        : "No supported agent configs found on this machine.",
+    );
+    return 1;
+  }
+
+  const entry = serverEntry(options.mode);
+  console.log(`${options.dryRun ? "Would register" : "Registering"} '${SERVER_KEY}' (${options.mode} mode)`);
+  console.log(`  command  ${String(entry.command)} ${(entry.args as string[]).join(" ")}\n`);
+
+  let failed = false;
+  for (const target of detected) {
+    const outcome = connectTarget(target, options.mode, { dryRun: options.dryRun });
+    const mark = { written: "ok", unchanged: "--", unsupported: "!!", failed: "XX" }[outcome.status];
+    console.log(`  ${mark}  ${target.label.padEnd(12)} ${outcome.detail ?? ""}`);
+    if (outcome.backupPath) console.log(`      backup: ${outcome.backupPath}`);
+    if (outcome.status === "failed") failed = true;
+  }
+
+  if (!options.dryRun) {
+    // MCP servers are spawned when the agent starts, so nothing appears until
+    // the agent reloads. Saying so avoids the "why are there no tools" round trip.
+    console.log("\nRestart or reload your agent for the tools to appear.");
+  }
+  return failed ? 1 : 0;
 }
 
 async function doctor(
@@ -158,6 +210,7 @@ function printHelp(): void {
 Usage
   blocks-console [serve] [options]   Serve the console UI (default)
   blocks-console mcp                 Run the MCP server over stdio
+  blocks-console connect [--local]   Register the MCP server with your agents
   blocks-console doctor              Report what was detected
 
 Options
@@ -166,6 +219,9 @@ Options
       --region <region>  AWS region for cloud mode
       --port <port>      Port to serve on (default: first free from ${DEFAULT_PORT})
       --no-open          Do not open a browser
+      --local            connect: point at this checkout instead of the npm package
+      --dry-run          connect: show what would change, write nothing
+      --agent <id>       connect: only this agent (kiro, cursor, claude-code, codex)
   -h, --help             Show this help
 
 Environment
