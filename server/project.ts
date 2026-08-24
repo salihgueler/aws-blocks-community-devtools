@@ -10,7 +10,7 @@ import { dirname, join, resolve } from "node:path";
  *   2. walk up from the start directory looking for aws-blocks/index.ts,
  *      the way git finds .git — so any subdirectory of a project works
  *   3. one level down, for monorepos where the agent sits at the repo root
- *      and the Blocks app is a child (e.g. tabletop-game-room-experience)
+ *      and the Blocks app lives in a subdirectory
  */
 
 const MARKER = join("aws-blocks", "index.ts");

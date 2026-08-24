@@ -16,7 +16,7 @@ const PROBE_TIMEOUT_MS = 1500;
 
 /**
  * The local dev server port is per project, not a constant: each project's
- * `aws-blocks/scripts/server.ts` passes its own `port:` (tabletop uses 3001
+ * `aws-blocks/scripts/server.ts` passes its own `port:` (some projects use 3001
  * so its Vite client can own 3000). Read it rather than assuming.
  */
 export function resolveLocalPort(projectPath: string): number {

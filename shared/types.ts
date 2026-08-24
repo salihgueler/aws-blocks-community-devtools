@@ -33,7 +33,7 @@ export interface DiscoveredBlock {
   type: string;
   /** Second constructor arg, e.g. "pages" */
   id: string;
-  /** Scope-qualified id used for physical resources, e.g. "some-useful-links-pages" */
+  /** Scope-qualified id used for physical resources, e.g. "myapp-pages" */
   fullId: string;
   category: BlockCategory;
   /** Source location of the `new X(...)` expression */
@@ -50,7 +50,7 @@ export interface DiscoveredBlock {
 export type WriteMode = "create" | "edit";
 
 export interface ScopeInfo {
-  /** First constructor arg of `new Scope(...)`, e.g. "some-useful-links" */
+  /** First constructor arg of `new Scope(...)`, e.g. "myapp" */
   id: string;
   file: string;
 }
