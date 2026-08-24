@@ -1,4 +1,6 @@
 import { createServer } from "node:http";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
 import { parseArgs } from "node:util";
 import { resolve } from "node:path";
 import { discoverBlocks } from "./discovery.js";
@@ -13,6 +15,7 @@ import {
   setCloudUserEnabled,
 } from "./writes.js";
 import { putCloudItem, putLocalRecord } from "./puts.js";
+import { serveStatic } from "./static.js";
 
 /**
  * Console backend. Deliberately localhost-only: it holds no auth because it
@@ -36,6 +39,8 @@ const projectPath = resolve(
 const profile = args.profile ?? process.env.AWS_PROFILE ?? "default";
 const region = args.region ?? process.env.AWS_REGION;
 const port = Number(args.port ?? 4401);
+// dist/ sits beside server/ in both the repo and the published package.
+const DIST_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "dist");
 
 /** ApiNamespace ids this project declares — the dev-server identity signal. */
 function apiNamespaces(): string[] {
@@ -185,8 +190,22 @@ async function route(method: string, url: URL, body: string) {
         unlockExpiresInMs: unlockExpiresInMs(),
       });
     default:
-      return json({ error: "not found" }, 404);
+      break;
   }
+
+  // Anything that is not an API route is a request for the built UI.
+  if (!url.pathname.startsWith("/console-api/")) {
+    const asset = serveStatic(DIST_ROOT, url.pathname);
+    if (asset) return asset;
+    return {
+      status: 404,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+      body:
+        "No built UI found. Run `npm run build` in blocks-console, " +
+        "or use `npm run dev` to serve the UI through Vite.",
+    };
+  }
+  return json({ error: "not found" }, 404);
 }
 
 const server = createServer(async (request, response) => {
