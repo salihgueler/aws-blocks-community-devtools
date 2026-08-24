@@ -24,6 +24,7 @@
     "@aws-sdk/client-sts": "3.1114.0",
     "@aws-sdk/credential-providers": "3.1114.0",
     "@aws-sdk/lib-dynamodb": "3.1114.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "ts-morph": "24.0.0"
