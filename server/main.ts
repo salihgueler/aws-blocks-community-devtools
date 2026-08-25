@@ -15,6 +15,7 @@ import {
 } from "./writes.js";
 import { putCloudItem, putLocalRecord } from "./puts.js";
 import { serveStatic } from "./static.js";
+import { buildResourceInventory } from "./resource-inventory.js";
 
 /**
  * Console backend. Deliberately localhost-only: it holds no auth because it
@@ -178,6 +179,22 @@ async function route(method: string, url: URL, body: string) {
       return json(
         await detectEnvironment(projectPath, profile, region, apiNamespaces()),
       );
+    case "/console-api/resources": {
+      // Cloud-only by nature: there are no deployed resources without a stack.
+      const environment = await detectEnvironment(projectPath, profile, region, apiNamespaces());
+      if (!environment.cloud.stackFound) {
+        return json({ error: environment.cloud.error ?? "no deployed stack found" }, 404);
+      }
+      return json(
+        await buildResourceInventory(
+          environment.cloud.stackName,
+          environment.cloud.region ?? "us-east-1",
+          environment.cloud.accountId,
+          discoverBlocks(projectPath).blocks,
+          { profile, ...(region ? { region } : {}) },
+        ),
+      );
+    }
     case "/console-api/meta":
       return json({
         projectPath,
