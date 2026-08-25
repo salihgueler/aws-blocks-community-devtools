@@ -156,7 +156,12 @@ async function doctor(
   console.log(
     environment.cloud.stackFound
       ? `deployed stack ${environment.cloud.stackName} (${environment.cloud.region}, account ${environment.cloud.accountId})`
-      : `deployed stack none found (looked for ${environment.cloud.candidates.join(" or ")} in ${environment.cloud.region ?? "?"})`,
+      : environment.cloud.error
+        ? // Distinguish "AWS is not set up" from "AWS is set up and has no such
+          // stack" — reporting the latter for the former sends people hunting
+          // for a deployment that was never the problem.
+          `cloud mode    unavailable — ${environment.cloud.error}`
+        : `deployed stack none found (looked for ${environment.cloud.candidates.join(" or ")} in ${environment.cloud.region ?? "?"})`,
   );
   console.log(`agent writes   ${process.env[WRITES_ENV] === "1" ? "enabled" : `disabled (set ${WRITES_ENV}=1)`}`);
 }

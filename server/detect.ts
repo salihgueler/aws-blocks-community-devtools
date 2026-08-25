@@ -196,9 +196,31 @@ export async function detectCloud(
       }
     }
   } catch (error) {
-    base.error = error instanceof Error ? error.message : String(error);
+    base.error = friendlyCloudError(
+      error instanceof Error ? error.message : String(error),
+      profile,
+    );
   }
   return base;
+}
+
+/**
+ * Cloud mode is optional: a project built entirely against local mocks has no
+ * credentials at all, and the SDK's own wording ("Region is missing") reads
+ * like a bug rather than "you have not configured AWS". Translate the common
+ * cases so the console says what is actually true.
+ */
+function friendlyCloudError(message: string, profile: string): string {
+  if (/Region is missing/i.test(message)) {
+    return `no AWS region configured for profile '${profile}' — cloud mode needs a region (set AWS_REGION or --region). Local mode does not need AWS at all.`;
+  }
+  if (/could not load credentials|CredentialsProviderError|credentials.*not found|Profile .* (could not be found|not found)/i.test(message)) {
+    return `no AWS credentials found for profile '${profile}'. Local mode does not need AWS at all.`;
+  }
+  if (/ExpiredToken|expired|InvalidClientTokenId|security token.*invalid/i.test(message)) {
+    return `AWS credentials for profile '${profile}' are expired or invalid — refresh them to use cloud mode.`;
+  }
+  return message;
 }
 
 export async function detectEnvironment(
