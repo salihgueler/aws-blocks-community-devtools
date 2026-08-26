@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type {
   BlockDataPage,
+  ResourceInventory,
   EnvironmentStatus,
   ProjectInventory,
   RpcResponse,
@@ -45,6 +46,10 @@ export function useInventory(): Loadable<ProjectInventory> {
 
 export function useEnvironment(): Loadable<EnvironmentStatus> {
   return useGet<EnvironmentStatus>("/console-api/environment");
+}
+
+export function useResources(): Loadable<ResourceInventory> {
+  return useGet<ResourceInventory>("/console-api/resources");
 }
 
 export interface DataQuery {

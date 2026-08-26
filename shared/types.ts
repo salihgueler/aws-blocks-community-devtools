@@ -135,3 +135,32 @@ export interface RpcResponse {
   body: unknown;
   durationMs: number;
 }
+
+/** One deployed CloudFormation resource, with somewhere to click through to. */
+export interface ResourceRow {
+  logicalId: string;
+  physicalId: string;
+  type: string;
+  typeLabel: string;
+  status: string | null;
+  consoleUrl: string;
+  /** false when the link points at the stack rather than the resource itself */
+  directLink: boolean;
+}
+
+export interface ResourceGroup {
+  /** Block fullId, or null for a service group of unattributed resources */
+  blockFullId: string | null;
+  label: string;
+  resources: ResourceRow[];
+}
+
+export interface ResourceInventory {
+  stackName: string;
+  region: string;
+  accountId: string | null;
+  total: number;
+  groups: ResourceGroup[];
+  stackUrl: string;
+  error: string | null;
+}

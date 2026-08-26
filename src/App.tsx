@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { setUnlock, useEnvironment, useInventory } from "./api";
 import { DataBrowser, RpcPlayground } from "./panels";
+import { ResourcePanel } from "./ResourcePanel";
 import { BlockTile, LogoMark } from "./tiles";
 import type { DiscoveredBlock, EnvMode } from "../shared/types";
 
@@ -18,10 +19,23 @@ export function App() {
     () => new URLSearchParams(window.location.search).get("block"),
   );
   const [unlocked, setUnlocked] = useState(false);
+  const [showResources, setShowResources] = useState(
+    () => new URLSearchParams(window.location.search).get("view") === "resources",
+  );
+
+  function openResources() {
+    setShowResources(true);
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", "resources");
+    url.searchParams.delete("block");
+    window.history.replaceState(null, "", url);
+  }
 
   function selectBlock(fullId: string) {
+    setShowResources(false);
     setSelectedFullId(fullId);
     const url = new URL(window.location.href);
+    url.searchParams.delete("view");
     url.searchParams.set("block", fullId);
     window.history.replaceState(null, "", url);
   }
@@ -134,6 +148,26 @@ export function App() {
               ))}
             </div>
           ))}
+          {cloud?.stackFound && (
+            <div className="sidebar-footer">
+              <button
+                className={`block-item resources-item ${showResources ? "selected" : ""}`}
+                onClick={openResources}
+              >
+                <span className="resources-glyph" aria-hidden="true">
+                  <svg width="22" height="22" viewBox="0 0 22 22">
+                    <rect x="2" y="3" width="18" height="5" rx="1.5" fill="none" stroke="var(--json-key)" strokeOpacity="0.75" />
+                    <rect x="2" y="10" width="18" height="5" rx="1.5" fill="none" stroke="var(--json-str)" strokeOpacity="0.75" />
+                    <rect x="2" y="17" width="12" height="3" rx="1.5" fill="none" stroke="var(--text-dim)" strokeOpacity="0.75" />
+                  </svg>
+                </span>
+                <span className="block-item-text">
+                  Deployed resources
+                  <span className="type">{cloud.region}</span>
+                </span>
+              </button>
+            </div>
+          )}
         </nav>
         <main className="detail">
           {environment.data?.cloud.error && (
@@ -142,7 +176,9 @@ export function App() {
           {cloudWhy && !cloud?.error && (
             <div className="notice cloud-note">Cloud mode unavailable — {cloudWhy}</div>
           )}
-          {selected ? (
+          {showResources ? (
+            <ResourcePanel />
+          ) : selected ? (
             <BlockDetail
               block={selected}
               mode={mode}

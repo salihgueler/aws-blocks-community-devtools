@@ -1,4 +1,9 @@
-import type { DiscoveredBlock } from "../shared/types.js";
+import type {
+  DiscoveredBlock,
+  ResourceGroup,
+  ResourceInventory,
+  ResourceRow,
+} from "../shared/types.js";
 import { listAllResources, type CloudClientOptions } from "./cloud-resources.js";
 import { consoleLink, friendlyType, stackResourcesUrl } from "./console-links.js";
 
@@ -14,34 +19,6 @@ import { consoleLink, friendlyType, stackResourcesUrl } from "./console-links.js
  * No new AWS calls: listAllResources is the same paginated, 5-minute-cached
  * fetch that block-to-resource mapping already performs.
  */
-
-export interface ResourceRow {
-  logicalId: string;
-  physicalId: string;
-  type: string;
-  typeLabel: string;
-  status: string | null;
-  consoleUrl: string;
-  /** false when the link points at the stack rather than the resource itself */
-  directLink: boolean;
-}
-
-export interface ResourceGroup {
-  /** Block fullId, or null for resources no block claims */
-  blockFullId: string | null;
-  label: string;
-  resources: ResourceRow[];
-}
-
-export interface ResourceInventory {
-  stackName: string;
-  region: string;
-  accountId: string | null;
-  total: number;
-  groups: ResourceGroup[];
-  stackUrl: string;
-  error: string | null;
-}
 
 const squash = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 
