@@ -22,6 +22,30 @@ import { consoleLink, friendlyType, stackResourcesUrl } from "./console-links.js
 
 const squash = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 
+/**
+ * Constructs declared on the CDK side (aws-blocks/index.cdk.ts) rather than on
+ * the Scope, so block discovery never sees them.
+ *
+ * A CloudFormation logical id is the CDK construct path concatenated, so every
+ * resource Hosting creates is prefixed "Hosting" — which is enough to group
+ * them without parsing index.cdk.ts. That matters, because the declaration
+ * there is conditional (`if (!sandboxMode) new Hosting(...)`): a static read of
+ * that file would claim Hosting exists in sandbox deploys where it does not,
+ * whereas a logical-id prefix only ever matches resources that really shipped.
+ *
+ * A curated list and not a general "first construct segment" rule, because the
+ * framework's own internals share that shape ("Blocks*", "Handler*") and are
+ * better left in service groups — bucketing 45 plumbing resources under one
+ * heading is the burying problem this grouping exists to solve.
+ */
+const FEATURE_CONSTRUCTS: { prefix: string; label: string; note: string }[] = [
+  {
+    prefix: "hosting",
+    label: "Hosting",
+    note: "Static site and CDN, declared in aws-blocks/index.cdk.ts rather than as a block",
+  },
+];
+
 export async function buildResourceInventory(
   stackName: string,
   region: string,
@@ -87,7 +111,9 @@ export async function buildResourceInventory(
     if (!rows) continue;
     base.groups.push({
       blockFullId: block.fullId,
+      kind: "block",
       label: `${block.id} · ${block.type}`,
+      note: null,
       resources: sortRows(rows),
     });
   }
@@ -95,6 +121,23 @@ export async function buildResourceInventory(
 
   const unclaimed = grouped.get(null);
   if (unclaimed) {
+    // Pull CDK-side features out first so their linkable resources (the
+    // CloudFront distribution, the site bucket) are not scattered across nine
+    // service groups.
+    for (const feature of FEATURE_CONSTRUCTS) {
+      const owned = unclaimed.filter((row) => squash(row.logicalId).startsWith(feature.prefix));
+      if (owned.length === 0) continue;
+      for (const row of owned) unclaimed.splice(unclaimed.indexOf(row), 1);
+      base.groups.push({
+        blockFullId: null,
+        kind: "feature",
+        label: feature.label,
+        note: feature.note,
+        resources: sortRows(owned),
+      });
+    }
+  }
+  if (unclaimed && unclaimed.length > 0) {
     // One flat bucket buried the resources worth clicking (the CloudFront
     // distribution, the API) under ~30 IAM entries and ~30 Lambda plumbing
     // rows, so split by AWS service instead. Services with something linkable
@@ -107,6 +150,7 @@ export async function buildResourceInventory(
     const serviceGroups = [...byService.entries()]
       .map(([service, rows]) => ({
         blockFullId: null,
+        kind: "service" as const,
         label: service,
         resources: sortRows(rows),
         linkable: rows.filter((row) => row.directLink).length,
@@ -119,7 +163,9 @@ export async function buildResourceInventory(
     for (const group of serviceGroups) {
       base.groups.push({
         blockFullId: group.blockFullId,
+        kind: group.kind,
         label: group.label,
+        note: null,
         resources: group.resources,
       });
     }

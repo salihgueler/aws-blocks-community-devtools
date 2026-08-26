@@ -52,10 +52,10 @@ export function ResourcePanel() {
       </div>
 
       {data.groups.map((group) => {
-        const key = group.blockFullId ?? `svc:${group.label}`;
-        // Block groups start open (few, and the interesting ones); service
-        // groups start closed so 30 IAM rows do not bury everything.
-        const expanded = open[key] ?? group.blockFullId !== null;
+        const key = group.blockFullId ?? `${group.kind}:${group.label}`;
+        // Block groups start open (few, and the interesting ones). Feature and
+        // service groups start closed so 30 rows do not bury everything.
+        const expanded = open[key] ?? group.kind === "block";
         return (
           <div className="card resource-group" key={key}>
             <button
@@ -68,8 +68,11 @@ export function ResourcePanel() {
               <span className="group-count">
                 {group.resources.length} resource{group.resources.length === 1 ? "" : "s"}
               </span>
-              {group.blockFullId === null && <span className="group-tag">service</span>}
+              {group.kind !== "block" && (
+                <span className={`group-tag group-tag-${group.kind}`}>{group.kind}</span>
+              )}
             </button>
+            {expanded && group.note && <p className="group-note">{group.note}</p>}
             {expanded && (
               <table className="data-table resource-table">
                 <thead>

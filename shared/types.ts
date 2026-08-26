@@ -149,9 +149,17 @@ export interface ResourceRow {
 }
 
 export interface ResourceGroup {
-  /** Block fullId, or null for a service group of unattributed resources */
+  /** Block fullId, or null when the group is not a block */
   blockFullId: string | null;
+  /**
+   * "block"   — caused by one `new SomeBlock(scope, ...)` declaration
+   * "feature" — a CDK-side construct that is a feature, not a block (Hosting)
+   * "service" — leftover framework resources bucketed by AWS service
+   */
+  kind: "block" | "feature" | "service";
   label: string;
+  /** Short explanation of what the group is, for non-block groups. */
+  note: string | null;
   resources: ResourceRow[];
 }
 

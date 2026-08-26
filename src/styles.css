@@ -283,3 +283,20 @@ a.row-action { text-decoration: none; display: inline-block; }
 a.row-action.indirect { color: var(--text-dim); }
 .stack-link { color: var(--accent); }
 .card-heading { margin: 0 0 10px; font-size: 13px; color: var(--text-dim); font-weight: 600; }
+/* A feature group is neither a block nor plumbing, so it reads differently
+   from the muted "service" tag without competing with the block groups.
+   --accent itself is only 4.21:1 on the panel background, so this is the
+   accent lifted 15% toward white: same hue, 5.34:1, clears AA for 13px text.
+   The border keeps the saturated accent, where contrast rules do not apply. */
+.group-tag-feature { border-color: var(--accent-dim); color: rgb(144, 116, 255); }
+.group-note {
+  margin: 0;
+  padding: 8px 14px 10px 34px;
+  font-size: 12px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+/* JsonView keeps a 10px caret because its rows are dense; a group header is
+   not a tree row, so the caret matches the header text instead of adding a
+   third type size to a scale that is otherwise just 18/13. */
+.group-toggle .json-caret { font-size: 13px; }
