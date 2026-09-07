@@ -57,6 +57,18 @@ export async function runCli(argv: string[]): Promise<number> {
     return 0;
   }
 
+  // connect only writes agent config, and the registration is deliberately
+  // project-independent (one entry covers every project, because the MCP server
+  // resolves the project from the agent's cwd). So it must not be gated on
+  // standing in a project directory.
+  if (command === "connect") {
+    return connect({
+      mode: values.local ? "local" : "published",
+      dryRun: values["dry-run"] === true,
+      only: values.agent,
+    });
+  }
+
   const resolution = resolveProject(values.project ?? process.cwd());
   if (!resolution.ok) {
     reportUnresolved(resolution);
@@ -69,13 +81,6 @@ export async function runCli(argv: string[]): Promise<number> {
   if (command === "doctor") {
     await doctor(projectPath, profile, region);
     return 0;
-  }
-  if (command === "connect") {
-    return connect({
-      mode: values.local ? "local" : "published",
-      dryRun: values["dry-run"] === true,
-      only: values.agent,
-    });
   }
   if (command !== "serve") {
     console.error(`Unknown command: ${command}\n`);
