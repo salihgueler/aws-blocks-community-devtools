@@ -17,6 +17,21 @@ npx aws-blocks-console
 npx aws-blocks-console connect
 ```
 
+## The agent skill
+
+[`skills/aws-blocks-development`](skills/aws-blocks-development) is a hand-authored agent skill for building on `@aws-blocks/blocks` — 33 files covering every Building Block, the JSON-RPC API model, scaffolding, native clients, testing and troubleshooting.
+
+It is deliberately **self-contained**: the facts are written into the skill rather than deferring to bundled docs at runtime, so an agent loading it needs nothing else. Ground truth is the upstream package's own source and declarations, and every claim is pinned to a released version — currently `0.4.0`. [`VERSION-DELTA.md`](skills/aws-blocks-development/VERSION-DELTA.md) quarantines behaviour that exists on upstream `main` but has not shipped, so the skill never describes an unreleased API as available.
+
+`scripts/drift-guard.mjs` extracts every identifier from the skill's code fences and checks them against the installed package's `.d.ts` and API report, exiting non-zero on drift. It needs a real install to compare against — point it at one:
+
+```bash
+node skills/aws-blocks-development/scripts/drift-guard.mjs \
+  --node-modules /path/to/a-blocks-project/node_modules
+```
+
+Without `--node-modules` (or `BLOCKS_NODE_MODULES`) it degrades gracefully and exits 0 having checked nothing, so pass the path or the run tells you nothing. Worth doing after every `@aws-blocks/blocks` upgrade.
+
 ## Why two packages
 
 They are genuinely different products with different audiences: one renders pixels for a human, the other speaks a protocol to an agent. Keeping them separate means an agent installing the MCP server does not also download a React UI it will never render.
@@ -28,6 +43,8 @@ packages/
   core/       private, unpublished — bundled into both packages below
   console/    aws-blocks-console  → HTTP + browser UI + the CLI
   mcp/        aws-blocks-mcp      → stdio adapter for agents
+skills/
+  aws-blocks-development/   the agent skill (not an npm package)
 ```
 
 ## Local development
