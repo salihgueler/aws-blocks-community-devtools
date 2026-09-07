@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-server/
 *.log
 .DS_Store
 .env
@@ -8,3 +9,5 @@ dist/
 .codex/
 .cursor/
 .agents/
+# impeccable installs agent-harness hook dirs when it runs
+.impeccable/

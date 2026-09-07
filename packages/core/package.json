@@ -1,0 +1,24 @@
+{
+  "name": "@aws-blocks-devtools/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Transport-free core shared by aws-blocks-console and aws-blocks-mcp. Not published; both packages bundle it.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cloudformation": "3.1114.0",
+    "@aws-sdk/client-cognito-identity-provider": "3.1114.0",
+    "@aws-sdk/client-dynamodb": "3.1114.0",
+    "@aws-sdk/client-sts": "3.1114.0",
+    "@aws-sdk/lib-dynamodb": "3.1114.0",
+    "ts-morph": "24.0.0"
+  }
+}

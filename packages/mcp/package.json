@@ -1,0 +1,55 @@
+{
+  "name": "aws-blocks-mcp",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "MCP server for AWS Blocks projects: lets an AI agent discover your Building Blocks, read local and deployed data, and call your API. Read-only by default.",
+  "keywords": [
+    "aws-blocks",
+    "aws",
+    "mcp",
+    "model-context-protocol",
+    "devtools"
+  ],
+  "license": "MIT",
+  "author": "Salih Guler",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/salihgueler/aws-blocks-community-devtools.git",
+    "directory": "packages/mcp"
+  },
+  "homepage": "https://github.com/salihgueler/aws-blocks-community-devtools/tree/main/packages/mcp#readme",
+  "bugs": "https://github.com/salihgueler/aws-blocks-community-devtools/issues",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "bin": {
+    "aws-blocks-mcp": "bin/aws-blocks-mcp.mjs"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsup",
+    "start": "tsx src/mcp-entry.mts",
+    "verify": "tsx src/verify-mcp.mts",
+    "prepublishOnly": "npm run typecheck && npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "3.25.76",
+    "@aws-sdk/client-cognito-identity-provider": "3.1114.0",
+    "@aws-sdk/client-dynamodb": "3.1114.0",
+    "@aws-sdk/lib-dynamodb": "3.1114.0",
+    "@aws-sdk/client-cloudformation": "3.1114.0",
+    "@aws-sdk/client-sts": "3.1114.0",
+    "ts-morph": "24.0.0"
+  },
+  "devDependencies": {
+    "@aws-blocks-devtools/core": "*",
+    "tsup": "8.5.0"
+  }
+}

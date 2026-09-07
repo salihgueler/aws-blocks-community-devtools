@@ -1,0 +1,65 @@
+{
+  "name": "aws-blocks-console",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Local-first admin console for AWS Blocks projects: browse your Building Blocks, read local and deployed data, and call your API — in a browser, with no setup.",
+  "keywords": [
+    "aws-blocks",
+    "aws",
+    "admin",
+    "console",
+    "devtools",
+    "dynamodb"
+  ],
+  "license": "MIT",
+  "author": "Salih Guler",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/salihgueler/aws-blocks-community-devtools.git",
+    "directory": "packages/console"
+  },
+  "homepage": "https://github.com/salihgueler/aws-blocks-community-devtools/tree/main/packages/console#readme",
+  "bugs": "https://github.com/salihgueler/aws-blocks-community-devtools/issues",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "bin": {
+    "aws-blocks-console": "bin/aws-blocks-console.mjs"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "dist-server",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "dev:server": "tsx watch server/main.ts",
+    "dev:client": "vite",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "vite build",
+    "build:server": "tsup",
+    "console": "tsx bin/cli-entry.mts",
+    "prepublishOnly": "npm run typecheck && npm run build"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "3.1114.0",
+    "@aws-sdk/client-dynamodb": "3.1114.0",
+    "@aws-sdk/lib-dynamodb": "3.1114.0",
+    "@aws-sdk/client-cloudformation": "3.1114.0",
+    "@aws-sdk/client-sts": "3.1114.0",
+    "ts-morph": "24.0.0"
+  },
+  "devDependencies": {
+    "@aws-blocks-devtools/core": "*",
+    "@types/react": "19.1.0",
+    "@types/react-dom": "19.1.0",
+    "@vitejs/plugin-react": "4.6.0",
+    "impeccable": "3.6.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "tsup": "8.5.0",
+    "vite": "6.4.3"
+  }
+}
