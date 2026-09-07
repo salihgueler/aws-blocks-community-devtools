@@ -40,7 +40,7 @@
     "build": "npm run build:client && npm run build:server",
     "build:client": "vite build",
     "build:server": "tsup",
-    "console": "tsx bin/cli-entry.mts",
+    "console": "tsx scripts/cli-entry.mts",
     "prepublishOnly": "npm run typecheck && npm run build"
   },
   "dependencies": {
