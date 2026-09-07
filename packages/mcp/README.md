@@ -40,7 +40,7 @@ An unknown block id fails loudly with the list of real ids rather than returning
 
 Only the three read tools above are registered. Write tools are **not registered at all** unless `AWS_BLOCKS_MCP_ALLOW_WRITES=1` is set — not merely refused when called, but absent from the tool list, so an agent cannot alter production data unattended. `blocks_project` reports `writesEnabled: false` so the agent can explain the limitation rather than failing mysteriously.
 
-For interactive writes against a real stack, use [`aws-blocks-console`](https://github.com/salihgueler/aws-blocks-community-devtools/tree/main/packages/console), whose unlock gate keeps a human in the loop.
+For interactive writes against a real stack, use [`aws-blocks-console`](https://www.npmjs.com/package/aws-blocks-console), whose unlock gate keeps a human in the loop.
 
 Values shaped like credentials are redacted before they leave the server, in both local and cloud reads.
 

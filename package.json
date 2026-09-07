@@ -12,9 +12,9 @@
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspace aws-blocks-console && npm run build --workspace aws-blocks-mcp",
-    "console": "npm run console --workspace aws-blocks-console",
-    "mcp": "npm run start --workspace aws-blocks-mcp",
-    "verify:mcp": "npm run verify --workspace aws-blocks-mcp"
+    "console": "tsx packages/console/scripts/cli-entry.mts",
+    "mcp": "tsx packages/mcp/src/mcp-entry.mts",
+    "verify:mcp": "tsx packages/mcp/src/verify-mcp.mts"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

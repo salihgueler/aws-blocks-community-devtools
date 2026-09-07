@@ -4,8 +4,8 @@ Community developer tools for [AWS Blocks](https://www.npmjs.com/package/@aws-bl
 
 | Package | What it is |
 | --- | --- |
-| [`aws-blocks-console`](packages/console) | A local-first admin console in your browser. Browse your Building Blocks, read local `.bb-data` or deployed DynamoDB/Cognito data, call your API, and open deployed AWS resources. |
-| [`aws-blocks-mcp`](packages/mcp) | An MCP server, so an AI agent can do the same things over stdio. Read-only unless you opt in. |
+| [`aws-blocks-console`](https://www.npmjs.com/package/aws-blocks-console) ([source](packages/console)) | A local-first admin console in your browser. Browse your Building Blocks, read local `.bb-data` or deployed DynamoDB/Cognito data, call your API, and open deployed AWS resources. |
+| [`aws-blocks-mcp`](https://www.npmjs.com/package/aws-blocks-mcp) ([source](packages/mcp)) | An MCP server, so an AI agent can do the same things over stdio. Read-only unless you opt in. |
 
 Neither one needs configuration. Run either inside an AWS Blocks project and it finds the project, its scope, its blocks, and its deployed stack on its own.
 
