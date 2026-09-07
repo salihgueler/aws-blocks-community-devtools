@@ -1,5 +1,5 @@
 ---
-name: building-aws-blocks-apps
+name: aws-blocks-development
 description: Builds fullstack TypeScript apps on AWS with @aws-blocks/blocks — scaffolding, correct import paths, the JSON-RPC API model, and deployment. Use when working with @aws-blocks/blocks, the create-blocks-app CLI, or any Building Block (KVStore, DistributedTable, Database, DistributedDatabase, FileBucket, Realtime, EmailClient, AsyncJob, CronJob, Agent, KnowledgeBase, AppSetting, AuthBasic, AuthCognito, AuthOIDC, Logger, Metrics, Tracer, Dashboard), and with Scope, ApiNamespace, RawRoute, BlocksStack, Hosting, or Pipeline.
 ---
 

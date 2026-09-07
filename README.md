@@ -1,13 +1,14 @@
 # AWS Blocks community devtools
 
-Community developer tools for [AWS Blocks](https://www.npmjs.com/package/@aws-blocks/blocks) projects. Two independent tools that read the same project and share one core.
+Community developer tools for [AWS Blocks](https://www.npmjs.com/package/@aws-blocks/blocks) projects: two npm packages that read your project, and the agent skill for building on it.
 
-| Package | What it is |
+| Tool | What it is |
 | --- | --- |
 | [`aws-blocks-console`](https://www.npmjs.com/package/aws-blocks-console) ([source](packages/console)) | A local-first admin console in your browser. Browse your Building Blocks, read local `.bb-data` or deployed DynamoDB/Cognito data, call your API, and open deployed AWS resources. |
 | [`aws-blocks-mcp`](https://www.npmjs.com/package/aws-blocks-mcp) ([source](packages/mcp)) | An MCP server, so an AI agent can do the same things over stdio. Read-only unless you opt in. |
+| [`aws-blocks-development`](skills/aws-blocks-development) | An agent skill covering every Building Block, the API model, scaffolding and deployment. Not published to npm — copy it into your project's skills directory. |
 
-Neither one needs configuration. Run either inside an AWS Blocks project and it finds the project, its scope, its blocks, and its deployed stack on its own.
+The two packages need no configuration. Run either inside an AWS Blocks project and it finds the project, its scope, its blocks, and its deployed stack on its own.
 
 ```bash
 # Browse a project in your browser
@@ -19,7 +20,12 @@ npx aws-blocks-console connect
 
 ## The agent skill
 
-[`skills/aws-blocks-development`](skills/aws-blocks-development) is a hand-authored agent skill for building on `@aws-blocks/blocks` — 33 files covering every Building Block, the JSON-RPC API model, scaffolding, native clients, testing and troubleshooting.
+`skills/aws-blocks-development` is 33 files: a `SKILL.md` map, one reference per Building Block, and top-level files for architecture, scaffolding, native clients, testing and troubleshooting. Copy it wherever your agent looks for skills:
+
+```bash
+cp -R skills/aws-blocks-development ~/.kiro/skills/          # Kiro, all projects
+cp -R skills/aws-blocks-development <project>/.claude/skills/ # Claude Code, one project
+```
 
 It is deliberately **self-contained**: the facts are written into the skill rather than deferring to bundled docs at runtime, so an agent loading it needs nothing else. Ground truth is the upstream package's own source and declarations, and every claim is pinned to a released version — currently `0.4.0`. [`VERSION-DELTA.md`](skills/aws-blocks-development/VERSION-DELTA.md) quarantines behaviour that exists on upstream `main` but has not shipped, so the skill never describes an unreleased API as available.
 
