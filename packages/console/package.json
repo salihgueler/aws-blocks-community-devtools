@@ -1,6 +1,6 @@
 {
   "name": "aws-blocks-console",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Local-first admin console for AWS Blocks projects: browse your Building Blocks, read local and deployed data, and call your API — in a browser, with no setup.",
   "keywords": [

@@ -1,6 +1,6 @@
 {
   "name": "aws-blocks-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "MCP server for AWS Blocks projects: lets an AI agent discover your Building Blocks, read local and deployed data, and call your API. Read-only by default.",
   "keywords": [
