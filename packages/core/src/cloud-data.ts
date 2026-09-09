@@ -71,7 +71,11 @@ async function scanTable(
   );
   const keyFields = (described.Table?.KeySchema ?? [])
     .slice()
-    .sort((a, b) => (a.KeyType === "HASH" ? -1 : 1))
+    // HASH first, then RANGE. Written as a real comparator: the previous form
+    // ignored `b` and returned -1/1 from `a` alone, which is inconsistent and
+    // only happened to work because DynamoDB key schemas hold at most two
+    // entries.
+    .sort((a, b) => Number(a.KeyType !== "HASH") - Number(b.KeyType !== "HASH"))
     .map((element) => element.AttributeName)
     .filter((name): name is string => Boolean(name));
   const page = await client.send(

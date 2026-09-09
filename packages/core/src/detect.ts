@@ -68,7 +68,9 @@ export async function detectLocal(
 ): Promise<LocalEnvStatus> {
   const bbDataPresent = existsSync(join(projectPath, ".bb-data"));
   const baseUrl = localBlocksUrl(projectPath);
-  let serverUp = false;
+  // Assigned on every path below — the try sets it from the probe, the catch
+  // sets it false — so an initializer here would be dead.
+  let serverUp: boolean;
   let namespaces: string[] = [];
   try {
     // Probing a deliberately unknown namespace is side-effect free and the
