@@ -43,7 +43,10 @@ export function looksSecret(value: string): boolean {
 /** Mask secret-bearing fields while leaving benign ones (names, dates) readable. */
 export function redactValue(value: unknown): unknown {
   if (typeof value === "string") return REDACTED;
-  if (Array.isArray(value)) return value.map(redactValue);
+  // Elements take the same content check as object fields: mapping redactValue
+  // here would hit the unconditional string branch above and mask every benign
+  // string in the array, so a `tags` field rendered as rows of bullets.
+  if (Array.isArray(value)) return value.map(redactShallow);
   if (value !== null && typeof value === "object") {
     const output: Record<string, unknown> = {};
     for (const [key, field] of Object.entries(value)) {
