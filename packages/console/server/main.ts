@@ -40,11 +40,16 @@ let region: string | undefined;
 // dist/ sits beside server/ in both the repo and the published package.
 const DIST_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "dist");
 
-/** ApiNamespace ids this project declares — the dev-server identity signal. */
-function apiNamespaces(): string[] {
-  return discoverBlocks(projectPath)
-    .blocks.filter((block) => block.type === "ApiNamespace")
+/** ApiNamespace ids a scanned project declares — the dev-server identity signal. */
+function namespacesOf(inventory: ReturnType<typeof discoverBlocks>): string[] {
+  return inventory.blocks
+    .filter((block) => block.type === "ApiNamespace")
     .map((block) => block.id);
+}
+
+/** Convenience for handlers that need only the namespaces, not the whole scan. */
+function apiNamespaces(): string[] {
+  return namespacesOf(discoverBlocks(projectPath));
 }
 
 async function routePost(url: URL, body: string) {
@@ -181,7 +186,15 @@ async function route(method: string, url: URL, body: string) {
       );
     case "/console-api/resources": {
       // Cloud-only by nature: there are no deployed resources without a stack.
-      const environment = await detectEnvironment(projectPath, profile, region, apiNamespaces());
+      // discoverBlocks walks the project from disk, so scan once and serve both
+      // the dev-server identity signal and the block list below from it.
+      const inventory = discoverBlocks(projectPath);
+      const environment = await detectEnvironment(
+        projectPath,
+        profile,
+        region,
+        namespacesOf(inventory),
+      );
       if (!environment.cloud.stackFound) {
         return json({ error: environment.cloud.error ?? "no deployed stack found" }, 404);
       }
@@ -190,7 +203,7 @@ async function route(method: string, url: URL, body: string) {
           environment.cloud.stackName,
           environment.cloud.region ?? "us-east-1",
           environment.cloud.accountId,
-          discoverBlocks(projectPath).blocks,
+          inventory.blocks,
           { profile, ...(region ? { region } : {}) },
         ),
       );

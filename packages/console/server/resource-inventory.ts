@@ -1,6 +1,5 @@
 import type {
   DiscoveredBlock,
-  ResourceGroup,
   ResourceInventory,
   ResourceRow,
 } from "@aws-blocks-devtools/core";
@@ -127,7 +126,12 @@ export async function buildResourceInventory(
     for (const feature of FEATURE_CONSTRUCTS) {
       const owned = unclaimed.filter((row) => squash(row.logicalId).startsWith(feature.prefix));
       if (owned.length === 0) continue;
-      for (const row of owned) unclaimed.splice(unclaimed.indexOf(row), 1);
+      // splice(indexOf(row)) per row rescans and reshifts the array each time;
+      // one filtered pass is O(n). Rebuilt in place so the `grouped` entry and
+      // this binding stay the same array.
+      const ownedRows = new Set(owned);
+      const kept = unclaimed.filter((row) => !ownedRows.has(row));
+      unclaimed.splice(0, unclaimed.length, ...kept);
       base.groups.push({
         blockFullId: null,
         kind: "feature",
@@ -145,7 +149,9 @@ export async function buildResourceInventory(
     const byService = new Map<string, ResourceRow[]>();
     for (const row of unclaimed) {
       const service = row.type.split("::")[1] ?? "Other";
-      byService.set(service, [...(byService.get(service) ?? []), row]);
+      const rows = byService.get(service);
+      if (rows) rows.push(row);
+      else byService.set(service, [row]);
     }
     const serviceGroups = [...byService.entries()]
       .map(([service, rows]) => ({
