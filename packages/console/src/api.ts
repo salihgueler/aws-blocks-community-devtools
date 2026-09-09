@@ -13,6 +13,24 @@ interface Loadable<T> {
   loading: boolean;
 }
 
+/** Narrow guard for the one server->client boundary: every response is a JSON
+ * object, so a non-object body means the server contract drifted (or a proxy
+ * returned an HTML error page). Reject it here instead of asserting `body as T`
+ * and crashing deep in a component. */
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Parse a response body as JSON, or return null when the body is not JSON
+ * (proxy 502, HTML error page, empty body). Callers decide what a null means. */
+async function parseJsonBody(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 function useGet<T>(path: string, refreshKey = 0): Loadable<T> {
   const [state, setState] = useState<Loadable<T>>({
     data: null,
@@ -21,11 +39,22 @@ function useGet<T>(path: string, refreshKey = 0): Loadable<T> {
   });
   useEffect(() => {
     let cancelled = false;
+    // Reset to loading at the start of the effect so a path/refreshKey change
+    // shows a spinner instead of the previous key's stale {data, loading:false}.
+    setState({ data: null, error: null, loading: true });
     fetch(path)
       .then(async (response) => {
-        const body = await response.json();
+        const body = await parseJsonBody(response);
         if (cancelled) return;
-        if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
+        if (!response.ok) {
+          const errText = isJsonObject(body) ? body.error : undefined;
+          throw new Error(
+            (typeof errText === "string" ? errText : undefined) ?? `HTTP ${response.status}`,
+          );
+        }
+        if (!isJsonObject(body)) {
+          throw new Error("Server returned a non-JSON response");
+        }
         setState({ data: body as T, error: null, loading: false });
       })
       .catch((error: unknown) => {
@@ -85,17 +114,36 @@ async function postJson(path: string, payload: unknown): Promise<{ ok: boolean; 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  const body = await response.json();
-  if (!response.ok) return { ok: false, message: body.error ?? `HTTP ${response.status}` };
-  return { ok: body.ok ?? true, message: body.message ?? "done" };
+  const body = await parseJsonBody(response);
+  // A proxy 502 or an HTML error page yields a non-JSON body; surface a useful
+  // message instead of throwing into callers that have no catch.
+  if (!isJsonObject(body)) {
+    return { ok: false, message: `Server error (HTTP ${response.status})` };
+  }
+  if (!response.ok) {
+    return {
+      ok: false,
+      message: typeof body.error === "string" ? body.error : `HTTP ${response.status}`,
+    };
+  }
+  return {
+    ok: typeof body.ok === "boolean" ? body.ok : true,
+    message: typeof body.message === "string" ? body.message : "done",
+  };
 }
 
-export const setUnlock = (unlock: boolean) =>
+export const setUnlock = (unlock: boolean): Promise<{ unlocked: boolean }> =>
   fetch("/console-api/unlock", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ unlock }),
-  }).then((r) => r.json() as Promise<{ unlocked: boolean }>);
+  })
+    .then(parseJsonBody)
+    // A non-JSON body (proxy 502 / HTML) must not throw into the caller; fall
+    // back to the safe read-only state so the lock button reflects reality.
+    .then((body) => ({
+      unlocked: isJsonObject(body) && typeof body.unlocked === "boolean" ? body.unlocked : false,
+    }));
 
 export const deleteCloudItem = (stack: string, fullId: string, key: Record<string, string>) =>
   postJson("/console-api/write/cloud-delete", { stack, fullId, key });
@@ -129,5 +177,16 @@ export async function callRpc(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ method, params, env }),
   });
-  return (await response.json()) as RpcResponse;
+  const body = await parseJsonBody(response);
+  // A non-JSON body (proxy 502 / HTML error) must produce a well-formed
+  // RpcResponse the playground can render, not an unguarded throw.
+  if (!isJsonObject(body)) {
+    return {
+      ok: false,
+      status: response.status,
+      body: { error: `Server returned a non-JSON response (HTTP ${response.status})` },
+      durationMs: 0,
+    };
+  }
+  return body as unknown as RpcResponse;
 }

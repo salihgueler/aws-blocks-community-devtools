@@ -60,7 +60,7 @@ export function ResourcePanel() {
           <div className="card resource-group" key={key}>
             <button
               className="group-toggle"
-              onClick={() => setOpen({ ...open, [key]: !expanded })}
+              onClick={() => setOpen((prev) => ({ ...prev, [key]: !expanded }))}
               aria-expanded={expanded}
             >
               <span className="json-caret">{expanded ? "▾" : "▸"}</span>
@@ -68,12 +68,12 @@ export function ResourcePanel() {
               <span className="group-count">
                 {group.resources.length} resource{group.resources.length === 1 ? "" : "s"}
               </span>
-              {group.kind !== "block" && (
+              {group.kind !== "block" ? (
                 <span className={`group-tag group-tag-${group.kind}`}>{group.kind}</span>
-              )}
+              ) : null}
             </button>
-            {expanded && group.note && <p className="group-note">{group.note}</p>}
-            {expanded && (
+            {expanded && group.note ? <p className="group-note">{group.note}</p> : null}
+            {expanded ? (
               <table className="data-table resource-table">
                 <thead>
                   <tr>
@@ -111,7 +111,7 @@ export function ResourcePanel() {
                   ))}
                 </tbody>
               </table>
-            )}
+            ) : null}
           </div>
         );
       })}
