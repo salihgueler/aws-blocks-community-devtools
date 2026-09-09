@@ -42,7 +42,7 @@ function ValueSummary({ value }: { value: unknown }) {
           <SummaryValue value={field} />
         </span>
       ))}
-      {hidden > 0 && <span className="json-count">+{hidden}</span>}
+      {hidden > 0 ? <span className="json-count">+{hidden}</span> : null}
     </span>
   );
 }
@@ -192,16 +192,16 @@ export function DataBrowser({
           {title} · {data.source} · {data.totalRecords} record{data.totalRecords === 1 ? "" : "s"}
           {data.redacted ? " · secrets redacted" : ""}
         </h3>
-        {canWrite && isTable && !editor && (
+        {canWrite && isTable && !editor ? (
           <button
             className="row-action"
             onClick={() => setEditor({ mode: "create", initial: emptyRecord(keySchema) })}
           >
             + New record
           </button>
-        )}
+        ) : null}
       </div>
-      {data.stores.length > 1 && (
+      {data.stores.length > 1 ? (
         <div className="store-picker" role="group" aria-label="Store">
           {data.stores.map((name) => (
             <button
@@ -213,9 +213,9 @@ export function DataBrowser({
             </button>
           ))}
         </div>
-      )}
-      {notice && <div className="notice">{notice}</div>}
-      {editor && (
+      ) : null}
+      {notice ? <div className="notice">{notice}</div> : null}
+      {editor ? (
         <RecordEditor
           mode={editor.mode}
           keySchema={keySchema}
@@ -224,7 +224,7 @@ export function DataBrowser({
           onSave={saveRecord}
           onCancel={() => setEditor(null)}
         />
-      )}
+      ) : null}
       {data.records.length === 0 ? (
         <div className="empty">Store is empty.</div>
       ) : (
@@ -233,7 +233,7 @@ export function DataBrowser({
             <tr>
               <th scope="col">Key</th>
               <th scope="col">Value</th>
-              {canWrite && <th scope="col">Actions</th>}
+              {canWrite ? <th scope="col">Actions</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -267,7 +267,7 @@ export function DataBrowser({
                       </button>
                     )}
                   </td>
-                  {canWrite && (
+                  {canWrite ? (
                     <td className="actions-cell">
                       {isCognito ? (
                         <button
@@ -278,7 +278,7 @@ export function DataBrowser({
                         </button>
                       ) : (
                         <>
-                          {isTable && !data.redacted && (
+                          {isTable && !data.redacted ? (
                             <button
                               className="row-action"
                               onClick={() =>
@@ -287,7 +287,7 @@ export function DataBrowser({
                             >
                               Edit
                             </button>
-                          )}
+                          ) : null}
                           <button
                             className="row-action danger"
                             onClick={() => removeRecord(record.key)}
@@ -297,7 +297,7 @@ export function DataBrowser({
                         </>
                       )}
                     </td>
-                  )}
+                  ) : null}
                 </tr>
               );
             })}
@@ -376,7 +376,7 @@ export function RpcPlayground({
           </button>
         ))}
       </div>
-      {selected && (
+      {selected ? (
         <div className="playground">
           <label className="field-label" htmlFor="rpc-args">
             Positional params for <code>{namespace}.{selected.name}</code> (JSON array)
@@ -389,11 +389,11 @@ export function RpcPlayground({
             onChange={(event) => setArgsText(event.target.value)}
             spellCheck={false}
           />
-          {argError && <div className="error-banner">{argError}</div>}
+          {argError ? <div className="error-banner">{argError}</div> : null}
           <button className="send-button" onClick={send} disabled={busy}>
             {busy ? "Calling…" : "Send"}
           </button>
-          {response && (
+          {response ? (
             <>
               <div className="meta">
                 HTTP {response.status} · {response.durationMs}ms
@@ -402,9 +402,9 @@ export function RpcPlayground({
                 <JsonView value={response.body} />
               </div>
             </>
-          )}
+          ) : null}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

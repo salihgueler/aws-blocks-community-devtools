@@ -117,7 +117,7 @@ export function App() {
             <span className={`dot ${cloud?.stackFound ? "up" : "down"}`} />
             {cloudLabel}
           </button>
-          {mode === "cloud" && cloud?.stackFound && (
+          {mode === "cloud" && cloud?.stackFound ? (
             <button
               className={`env-pill lock ${unlocked ? "unlocked" : ""}`}
               onClick={toggleUnlock}
@@ -125,12 +125,12 @@ export function App() {
             >
               {unlocked ? "🔓 writes ON" : "🔒 read-only"}
             </button>
-          )}
+          ) : null}
         </div>
       </header>
       <div className="main">
         <nav className="sidebar" aria-label="Building Blocks">
-          {inventory.error && <div className="error-banner">{inventory.error}</div>}
+          {inventory.error ? <div className="error-banner">{inventory.error}</div> : null}
           {[...grouped.entries()].map(([category, blocks]) => (
             <div key={category}>
               <div className="category">{CATEGORY_LABELS[category] ?? category}</div>
@@ -148,7 +148,7 @@ export function App() {
               ))}
             </div>
           ))}
-          {cloud?.stackFound && (
+          {cloud?.stackFound ? (
             <div className="sidebar-footer">
               <button
                 className={`block-item resources-item ${showResources ? "selected" : ""}`}
@@ -167,15 +167,15 @@ export function App() {
                 </span>
               </button>
             </div>
-          )}
+          ) : null}
         </nav>
         <main className="detail">
-          {environment.data?.cloud.error && (
+          {environment.data?.cloud.error ? (
             <div className="error-banner">Cloud: {environment.data.cloud.error}</div>
-          )}
-          {cloudWhy && !cloud?.error && (
+          ) : null}
+          {cloudWhy && !cloud?.error ? (
             <div className="notice cloud-note">Cloud mode unavailable — {cloudWhy}</div>
-          )}
+          ) : null}
           {showResources ? (
             <ResourcePanel />
           ) : selected ? (
@@ -223,9 +223,9 @@ function BlockDetail({
       </div>
       {mode === "cloud" ? (
         <>
-          {block.methods && block.methods.length > 0 && (
+          {block.methods && block.methods.length > 0 ? (
             <RpcPlayground namespace={block.id} methods={block.methods} env="cloud" />
-          )}
+          ) : null}
           {hasStore && stackName ? (
             <DataBrowser
               fullId={block.fullId}
@@ -234,21 +234,19 @@ function BlockDetail({
               unlocked={unlocked}
               keySchema={block.keySchema}
             />
-          ) : (
-            hasStore && (
-              <div className="card">
-                <h3>Cloud data · read-only</h3>
-                <div className="empty">No deployed stack found for this project.</div>
-              </div>
-            )
-          )}
+          ) : hasStore ? (
+            <div className="card">
+              <h3>Cloud data · read-only</h3>
+              <div className="empty">No deployed stack found for this project.</div>
+            </div>
+          ) : null}
         </>
       ) : (
         <>
-          {block.methods && block.methods.length > 0 && (
+          {block.methods && block.methods.length > 0 ? (
             <RpcPlayground namespace={block.id} methods={block.methods} env="local" />
-          )}
-          {hasStore && (
+          ) : null}
+          {hasStore ? (
             <DataBrowser
               fullId={block.fullId}
               query={{ env: "local" }}
@@ -256,15 +254,15 @@ function BlockDetail({
               unlocked={true}
               keySchema={block.keySchema}
             />
-          )}
+          ) : null}
         </>
       )}
-      {block.configPreview && (
+      {block.configPreview ? (
         <div className="card">
           <h3>Configuration (static preview)</h3>
           <pre className="code">{block.configPreview}</pre>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
