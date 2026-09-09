@@ -11,14 +11,22 @@
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "test": "vitest run",
     "build": "npm run build --workspace aws-blocks-console && npm run build --workspace aws-blocks-mcp",
     "console": "tsx packages/console/scripts/cli-entry.mts",
     "mcp": "tsx packages/mcp/src/mcp-entry.mts",
-    "verify:mcp": "tsx packages/mcp/src/verify-mcp.mts"
+    "verify:mcp": "tsx packages/mcp/src/verify-mcp.mts",
+    "verify:packaging": "node scripts/verify-packaging.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@types/node": "22.10.2",
+    "eslint": "10.10.0",
+    "eslint-plugin-react-hooks": "7.1.1",
     "tsx": "4.23.12",
-    "typescript": "5.7.2"
+    "typescript": "5.7.2",
+    "typescript-eslint": "8.70.0",
+    "vitest": "3.2.4"
   }
 }

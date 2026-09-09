@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push supersedes an in-flight run for the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the `engines.node` floor in package.json.
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # Must follow Build: this packs what is on disk and installs the real
+      # tarballs into a throwaway project, proving the private core is compiled
+      # in and never resolves as a dependency for a consumer. Guards the
+      # invariant in docs/adr/0001-core-is-compiled-in-not-a-dependency.md,
+      # which nothing else tests.
+      - name: Verify packaging
+        run: npm run verify:packaging
