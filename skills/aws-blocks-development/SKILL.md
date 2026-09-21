@@ -104,8 +104,7 @@ COMPOSITION-RECIPES.md, NATIVE-CLIENTS.md (Swift/Kotlin/Dart), TROUBLESHOOTING.m
 ## Package entry points (subpath exports)
 
 `@aws-blocks/blocks` exposes distinct entry points; import each symbol from the
-right one (not everything is on the root). Faithful to
-`packages/blocks/package.json`:
+right one (not everything is on the root). The published subpath exports:
 
 | Import path | What it provides |
 |---|---|
@@ -114,7 +113,7 @@ right one (not everything is on the root). Faithful to
 | `@aws-blocks/blocks/client` | The generated frontend client factory (`generateClient`) — normally you import from the app's own `aws-blocks` workspace, not this directly. |
 | `@aws-blocks/blocks/server` | SSR helpers: `withAuth`, `registerCookieProvider`, `clearCookieProviders`. |
 | `@aws-blocks/blocks/ui` | Framework-agnostic auth UI: `Authenticator`, `AuthenticatedContent`, `AccountMenuBar`, `onAuthChange`, `broadcastAuthChange`. |
-| `@aws-blocks/blocks/utils` | Test/dev helpers only — exactly `installCookieJar` and `isServerRunning` (`packages/blocks/src/utils.ts`). Auth state is **not** here: `setAuthState` is a method on `auth.createApi()`, not a `/utils` export. |
+| `@aws-blocks/blocks/utils` | Test/dev helpers only — exactly `installCookieJar` and `isServerRunning`. Auth state is **not** here: `setAuthState` is a method on `auth.createApi()`, not a `/utils` export. |
 | `@aws-blocks/blocks/lambda-handler` | The Lambda entry the generated `index.handler.ts` wires up — you rarely import it by hand. |
 | `@aws-blocks/blocks/scripts` | Programmatic access to the dev-server / client-gen / spec scripts the npm scripts call. |
 | `@aws-blocks/blocks/vendorize` | The eject engine behind the `blocks-vendorize` bin (see below). |
@@ -277,8 +276,7 @@ the hosting block file. Multi-stage CI/CD (per-branch CodePipeline, approvals,
 cross-account) is the pipeline block file.
 
 **Next.js server components** need the API URL at request time. The frontend
-client reads it from the `BLOCKS_API_URL` env var (verified in
-`packages/core/src/client/index.ts`); the Hosting construct injects it into the
+client reads it from the `BLOCKS_API_URL` env var; the Hosting construct injects it into the
 SSR Lambda automatically on a real deploy. For **local** Next.js dev, point it at
 the full RPC endpoint — `http://localhost:3000/aws-blocks/api`, never `/api`:
 

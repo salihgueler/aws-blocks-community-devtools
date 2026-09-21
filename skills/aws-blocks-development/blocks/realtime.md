@@ -169,7 +169,7 @@ const sub = channel.subscribe({
 ## Limits — channel path and message size
 
 There is **no** namespace character-count limit. Two byte-budget limits are
-enforced (see `bb-realtime/src/utils.ts`), both raising `ValidationFailed`:
+enforced, both raising `ValidationFailed`:
 
 - **Full channel path ≤ 1024 UTF-8 bytes.** The path is
   `{fullId}/{namespace}/{channel}`, where `fullId` is the scope-chain prefix.
@@ -210,8 +210,7 @@ declared in the `namespaces` map. It is **not** a member of the `RealtimeErrors`
 constant object, so there is no `RealtimeErrors.InvalidNamespace` to pass to
 `isBlocksError` — match it by the literal string `'InvalidNamespace'` (or, better,
 never let it happen: the namespace keys are known at construction). Declaring only
-the three constants above while throwing a fourth name is deliberate in source
-(`bb-realtime/src/index.ts`, `index.aws.ts`).
+the three constants above while throwing a fourth name is deliberate.
 
 ## Best practices
 

@@ -90,15 +90,14 @@ new RawRoute(scope, 'Files', { method: 'GET', path: '/files/*',
 ## Registration Rules
 
 - **Reserved paths:** `/aws-blocks`, `/aws-blocks/api`, and anything under `/aws-blocks/api/` are reserved for RPC dispatch. Registering a RawRoute at one of these throws at construction. Registering at `/` also throws (API Gateway's proxy resource can't handle root — use a sub-path).
-- **Duplicate routes:** Two routes with the same method + path throw at construction time (both locally and in AWS), as `RawRouteErrors.DuplicateRoute` (`'DuplicateRouteException'`, `packages/core/src/raw-route.ts:45-46`) — catch with `isBlocksError(e, RawRouteErrors.DuplicateRoute)`.
-- **Register-during-load:** All RawRoute instances must be created during module load (top-level or in the Scope constructor callback). The route registry is locked by `lockRouteRegistry()` immediately after the handler is created (`packages/core/src/lambda-handler.ts:316`), so a route registered afterwards (e.g. inside an API handler) is **not** silently dropped — it throws `Routes must be registered during initialization. Cannot register routes after handler creation.` (`packages/core/src/raw-route.ts:136`).
+- **Duplicate routes:** Two routes with the same method + path throw at construction time (both locally and in AWS), as `RawRouteErrors.DuplicateRoute` (`'DuplicateRouteException'`) — catch with `isBlocksError(e, RawRouteErrors.DuplicateRoute)`.
+- **Register-during-load:** All RawRoute instances must be created during module load (top-level or in the Scope constructor callback). The route registry is locked by `lockRouteRegistry()` immediately after the handler is created, so a route registered afterwards (e.g. inside an API handler) is **not** silently dropped — it throws `Routes must be registered during initialization. Cannot register routes after handler creation.`
 - **Hosting integration:** When a Hosting block is present, RawRoute paths are automatically added as CloudFront behaviors (no manual origin config needed).
 
 ## ctx.request / ctx.response Reference
 
-The handler receives a single `BlocksContext` with exactly these members
-(`packages/core/src/api.ts:3-46`) — there is no `arrayBuffer()`, no `method`,
-and no `sendRaw()`:
+The handler receives a single `BlocksContext` with exactly these members — there
+is no `arrayBuffer()`, no `method`, and no `sendRaw()`:
 
 - `ctx.request`:
   - `.headers` — `Headers` object

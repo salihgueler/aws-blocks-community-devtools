@@ -25,15 +25,13 @@ Publishing coordinates). All three live in the `aws-devtools-labs` GitHub org,
 
 ## Generating the spec
 
-`@aws-blocks/core` ships a **`blocks-generate-spec`** bin
-(`packages/core/package.json:67`), a CLI wrapper around `writeSpec()`
-(`packages/core/src/scripts/generate-spec-cli.ts`). Any Blocks app can invoke it
+`@aws-blocks/core` ships a **`blocks-generate-spec`** bin, a CLI wrapper around
+`writeSpec()`. Any Blocks app can invoke it
 via `npx blocks-generate-spec`, and every `create-blocks-app` template wires it as
 the `spec` npm script:
 
 ```jsonc
-// package.json (from every create-blocks-app template, e.g.
-//   packages/create-blocks-app/templates/default/package.json:13)
+// package.json (from every create-blocks-app template)
 "scripts": {
   "spec": "blocks-generate-spec"
 }
