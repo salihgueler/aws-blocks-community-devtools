@@ -24,6 +24,7 @@ assumed shipped in 0.4.0.
 - Project structure
 - Quick start
 - Verification workflow
+- Running the dev server & sandbox safely
 - Deployment
 - Ejecting a block: `blocks-vendorize`
 - Key rules
@@ -189,7 +190,10 @@ After any change to `aws-blocks/index.ts`:
    all blocks on local mocks, no AWS creds). Wait for the ready line — match on
    the substring **`local server running on`** (the full line is
    `AWS Blocks local server running on http://localhost:3000`; the project's own
-   e2e tests match that substring).
+   e2e tests match that substring). **If you are an agent, do not run `npm run dev`
+   (or `sandbox`) in the foreground — it never exits and will hang you.** Launch it
+   detached and poll for the ready line — see [Running the dev server & sandbox
+   safely](#running-the-dev-server--sandbox-safely).
 3. Type errors → fix → re-typecheck → restart.
 4. Smoke-test a method — the endpoint is `POST /aws-blocks/api` (JSON-RPC, never
    REST):
@@ -206,6 +210,32 @@ added/exported method is picked up by any of the three, not `dev` alone. Never
 edit `client.js` by hand.
 
 Do not move on to frontend work until the backend verifies clean.
+
+## Running the dev server & sandbox safely
+
+`npm run dev`, `npm run sandbox`, and any blocking server **do not exit** — running
+one in the foreground hangs an autonomous agent indefinitely. Launch it detached,
+poll for the ready line, do your work, then tear it down.
+
+```bash
+# 1. Start detached
+tmux new-session -d -s blocks 'npm run dev'
+
+# 2. Poll until ready (match the ready substring)
+for i in $(seq 1 30); do
+  sleep 3
+  tmux capture-pane -t blocks -p | grep -q "local server running on" && { echo READY; break; }
+done
+
+# 3. …run typecheck / curl the endpoint / drive e2e…
+
+# 4. Stop it
+tmux kill-session -t blocks
+```
+
+For a **sandbox** the deploy takes 2–3 minutes (CDK / CloudFormation) — same
+detached-poll pattern, and **always `npm run sandbox:destroy` (or `npm run destroy`)
+when you're done** so you don't leave AWS resources running.
 
 ## Deployment
 
@@ -259,6 +289,23 @@ SSR cookie forwarding (so a signed-in user's session reaches the API during
 render) is handled by `withAuth` from `@aws-blocks/blocks/server` — see the
 `withAuth (SSR)` section of CORE-ARCHITECTURE.md.
 
+### Production checklist
+
+Before a real `deploy`, confirm each of these — none is on by default:
+
+- **CORS:** set `CORS_ALLOWED_ORIGINS` explicitly (comma-separated anchored
+  regexes) — never a wildcard. The Hosting construct is same-origin so it needs
+  none; a separate frontend origin does. See CORE-ARCHITECTURE.md § CORS.
+- **Rate limiting / WAF:** API Gateway throttling and AWS WAF are **not** added
+  by the framework — wire them via CDK for any public-facing app.
+- **Cross-domain auth:** pass `crossDomain: true` to an auth constructor when the
+  frontend and API are on different domains (sets `SameSite=None; Secure;
+  Partitioned` cookies).
+- **Monitoring:** enable Hosting `monitoring` so CloudFront 5xx / SSR Lambda
+  errors reach an SNS topic. See `blocks/hosting.md`.
+- **IAM:** do not hand-write broad `*` IAM policies — each block already grants
+  least-privilege scoped to its own resources.
+
 ## Ejecting a block: `blocks-vendorize`
 
 `@aws-blocks/blocks` ships a `blocks-vendorize` bin (templates expose it as the
@@ -295,6 +342,18 @@ enough.
   `{fullId}/{namespace}/{channel}` must be ≤ **1024 UTF-8 bytes** (DynamoDB
   sort-key limit) and each published message ≤ **32768 bytes**. Keep Scope IDs
   short so the path fits — there is no separate namespace-length limit.
+- **Secrets live in `AppSetting`, not `.env`.** Store API keys / credentials with
+  `new AppSetting(scope, id, { secret: true })` — never hardcode them or read them
+  from `.env`. See `blocks/app-setting.md`.
+- **`Logger` does not redact.** Never pass raw credentials, tokens, or secrets to
+  Logger methods — it provides serialization safety, not redaction. Sanitize the
+  context object before logging. See `blocks/logger.md`.
+- **Route constraints:** no root `/` route, and a wildcard must be the **last**
+  path segment (`/v1/*`, not `/v1/*/x`) — API Gateway rejects otherwise. See
+  `blocks/raw-route.md`.
+- **Inject block config with `registerConfig()`**, never `handler.addEnvironment()`
+  (Lambda env has a ~4 KB cap). The **`BLOCKS_` env prefix is framework-reserved** —
+  don't use it for app code.
 - **JSON-RPC errors are HTTP 200** with an `error` body — check the body.
 
 ## More references

@@ -104,6 +104,14 @@ active tracing on** — which the Tracer block enables. That is what lets you pi
 from a log line to its trace; without a Tracer (or with tracing off) the field is
 simply absent.
 
+## Security: Logger does not redact
+
+Logger provides serialization safety (circular refs, `BigInt`, type coercion) but
+**does not redact sensitive content**. Never pass raw credentials, tokens,
+passwords, or secrets to any Logger method — anything you log lands in CloudWatch
+verbatim. Sanitize (drop or mask) sensitive fields on the context object before
+logging.
+
 ## Errors
 
 `LoggingErrors.SerializationFailed` (`SerializationFailedException`) — a context
