@@ -227,6 +227,7 @@ Import `AsyncJobErrors` from `@aws-blocks/blocks`; match with `isBlocksError`.
 | `Timeout` | `AsyncJobTimeoutException` | `waitUntilComplete` gave up before a terminal state |
 | `StatusNotTracked` | `StatusNotTrackedException` | `getStatus`/`waitUntilComplete` without `trackStatus: true` |
 | `InvalidOption` | `InvalidOptionException` | `batchSize`/`maxBatchingWindowSeconds` out of range (thrown at synth) |
+| `UnsupportedCompute` | `UnsupportedComputeException` | the resolved compute is not Lambda (thrown at synth) |
 
 For a payload over 256 KB, store the blob in FileBucket or KVStore and put a
 reference key in the job payload.

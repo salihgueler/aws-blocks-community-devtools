@@ -10,10 +10,11 @@ it with no codegen, both defined in one `aws-blocks/` workspace and deployed wit
 CDK. This file is the map — it routes you to the right block file and the
 top-level references; per-block API detail lives in those files, not here.
 
-**Pinned version.** This skill targets published `@aws-blocks/blocks@0.4.0`
-(2026-09-01, npm `latest`). Changes that landed on `main` **after** that release
-are collected in one place — VERSION-DELTA.md. Anything not listed there is
-assumed shipped in 0.4.0.
+**Pinned version.** This skill targets published `@aws-blocks/blocks@0.6.0`
+(2026-09-17, npm `latest`). Every API claim here is written against that release.
+Individual Building Blocks version independently under the umbrella (e.g.
+`bb-agent@0.4.1`, `bb-data@0.3.0`, `core@0.5.0`, `hosting@0.3.1`); when a claim is
+version-sensitive it names the component version inline.
 
 ## Contents
 
@@ -291,7 +292,7 @@ render) is handled by `withAuth` from `@aws-blocks/blocks/server` — see the
 
 ### Production checklist
 
-Before a real `deploy`, confirm each of these — none is on by default:
+Before a real `deploy`, confirm each of these:
 
 - **CORS:** set `CORS_ALLOWED_ORIGINS` explicitly (comma-separated anchored
   regexes) — never a wildcard. The Hosting construct is same-origin so it needs
@@ -299,10 +300,11 @@ Before a real `deploy`, confirm each of these — none is on by default:
 - **Rate limiting / WAF:** API Gateway throttling and AWS WAF are **not** added
   by the framework — wire them via CDK for any public-facing app.
 - **Cross-domain auth:** pass `crossDomain: true` to an auth constructor when the
-  frontend and API are on different domains (sets `SameSite=None; Secure;
-  Partitioned` cookies).
-- **Monitoring:** enable Hosting `monitoring` so CloudFront 5xx / SSR Lambda
-  errors reach an SNS topic. See `blocks/hosting.md`.
+  frontend and API are on different domains (AuthCognito/AuthOIDC set
+  `SameSite=None; Secure; Partitioned`; AuthBasic sets `SameSite=None; Secure`).
+- **Monitoring:** Hosting `monitoring` is **on by default** (`{ enabled: true }`) —
+  confirm you haven't disabled it, and set `snsTopicArn` to route CloudFront 5xx /
+  SSR Lambda alarms to your own topic. See `blocks/hosting.md`.
 - **IAM:** do not hand-write broad `*` IAM policies — each block already grants
   least-privilege scoped to its own resources.
 
@@ -364,4 +366,3 @@ enough.
 - Multi-block recipes → COMPOSITION-RECIPES.md
 - Common errors & fixes → TROUBLESHOOTING.md
 - Native mobile/desktop clients → NATIVE-CLIENTS.md
-- Post-0.4.0 / main-only changes → VERSION-DELTA.md

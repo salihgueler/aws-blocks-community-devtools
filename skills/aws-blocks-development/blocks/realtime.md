@@ -202,6 +202,7 @@ try {
 | `RealtimeErrors.ValidationFailed` | `ValidationFailedException` | Data failed the namespace schema, or exceeded the 1024-byte path / 32768-byte message limit |
 | `RealtimeErrors.PublishFailed` | `PublishFailedException` | Fan-out failed (AWS only) |
 | `RealtimeErrors.ConnectionFailed` | `ConnectionFailedException` | WebSocket connect or subscribe rejected (e.g. token rejected, empty signing secret) |
+| `RealtimeErrors.UnsupportedCompute` | `UnsupportedComputeException` | the resolved compute is not Lambda (thrown at synth) |
 
 There is also an **`InvalidNamespace`** error (`error.name === 'InvalidNamespace'`)
 thrown by `publish` / `getChannel` / `subscribe` when the namespace is not one

@@ -221,7 +221,7 @@ code below.
 
 **``AWS credentials could not be verified for `npm run <command>` (<errorName>).``**
 A pre-synth credential check (shipped in `@aws-blocks/blocks@0.4.0`, commit
-`0ac3879`, #424) failed before `npm run sandbox` / `npm run deploy` provisioned
+`0ac3879`, #424; still present at the current `0.6.0` pin) failed before `npm run sandbox` / `npm run deploy` provisioned
 anything (`core/src/scripts/preflight-credentials.ts:127`). It **fails fast only
 on credential-class errors** — the seven names in `CREDENTIAL_ERROR_NAMES`
 (`preflight-credentials.ts:27-35`): `CredentialsProviderError`, `ExpiredToken`,

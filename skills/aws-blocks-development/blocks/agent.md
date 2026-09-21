@@ -85,7 +85,8 @@ interface AgentConfig<TContext = Record<string, any>> {
   name?: string;                              // forwarded to Strands (routing/tracing)
   description?: string;                        // forwarded to Strands (routing/tracing)
   removalPolicy?: 'destroy' | 'retain';       // teardown of the sessions FileBucket
-  structuredOutput?: z.ZodType;               // inert in 0.4.0 — REMOVED post-0.4.0 (see note)
+  maxLlmCalls?: number | false;               // per-turn cap on model calls (false = disable)
+  maxToolIterations?: number | false;         // per-turn cap on tool loops (false = disable)
   logger?: ChildLogger;
 }
 ```
@@ -104,16 +105,14 @@ stopSequences? }`.
   Omitted → CDK RETAIN (session blobs survive `cdk destroy`, and a `destroy`
   will fail on the non-empty bucket). Pass `'destroy'` for sandbox/ephemeral
   stacks; it pairs the bucket with `autoDeleteObjects`.
-- `structuredOutput` — present in `AgentConfig` **in 0.4.0** (and in `API.md`) but
-  inert: no code path consumed it (`createStrandsAgent()` never read it, and it was
-  never passed to Strands). On `main` it was **removed entirely** post-0.4.0
-  (#479, `2cb9d74`) — zero occurrences remain in `packages/bb-agent/src`. On 0.4.0
-  do not rely on it to shape model output; on `main` it is gone. See VERSION-DELTA.md.
-- **Per-turn cost caps (`maxLlmCalls`, `maxToolIterations`)** are **not in 0.4.0** —
-  they were added on `main` post-0.4.0 (#455, `9111c0c`). When present, each is a
-  positive integer or `false` (disable); a cap trip stops the turn and the client
-  gets an `error` chunk instead of `done`. Do not reference them against an
-  installed 0.4.0. See VERSION-DELTA.md.
+- `structuredOutput` has been **removed** from `AgentConfig` (#479, `2cb9d74`);
+  it does not exist at the `0.6.0` pin. It was present but inert in `0.4.0` (no
+  code path ever consumed it). Do not reference it — shape model output with tools
+  or by parsing the streamed text instead.
+- **Per-turn cost caps (`maxLlmCalls`, `maxToolIterations`)** are shipped
+  (#455, `9111c0c`; `bb-agent/dist/types.d.ts`). Each is a positive integer or
+  `false` (disable). A cap trip stops the turn and the client gets an `error`
+  chunk instead of `done`.
 
 ### Conversation strategy
 
@@ -302,11 +301,13 @@ await agent.stream(message, { conversationId, userId });
 
 ### Routing architecture
 
-`stream()` submits to the internal AsyncJob and returns `{ channelId }`
-immediately; the job consumer runs the Strands agent and publishes chunks to
-Realtime. Locally the job runs in-process (Realtime over a local WebSocket on the
-dev-server port); on AWS it is SQS + Lambda, API Gateway WebSocket, and DynamoDB.
-The event source uses `batchSize: 1` so an interactive turn isn't delayed.
+`stream()` submits the turn and returns `{ channelId }` immediately; the Strands
+agent loop runs and publishes chunks to Realtime as they arrive. Locally the loop
+runs in-process (Realtime over a local WebSocket on the dev-server port). On AWS
+the loop runs on a **Bedrock AgentCore Runtime** (sessions up to 8h, warm
+execution) with API Gateway WebSocket for chunk delivery and DynamoDB for history
+— the streaming execution moved to AgentCore Runtime in `0.6.0` (`bb-agent@0.4.1`),
+replacing the earlier SQS + Lambda consumer.
 
 ## Conversation methods and record shapes
 
@@ -477,11 +478,11 @@ Catch with `isBlocksError(e, AgentErrors.X)`:
 
 ## What it provisions
 
-- Lambda function (async agent execution via the internal AsyncJob)
+- Bedrock AgentCore Runtime (streaming agent loop; sessions up to 8h) — on AWS
 - Two DynamoDB tables (conversation + message history) — omitted when
   `inferenceOnly`
 - S3 bucket (Strands session snapshots)
-- SQS queue (AsyncJob) and API Gateway WebSocket (Realtime chunk delivery)
+- API Gateway WebSocket (Realtime chunk delivery)
 - IAM role with `bedrock:InvokeModel` / `InvokeModelWithResponseStream` and model
   discovery permissions
 
