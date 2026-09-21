@@ -51,15 +51,24 @@ const dashboard = new Dashboard(scope, 'dashboard', {
 ```typescript
 interface DashboardOptions {
   title?: string;
-  metrics?: MetricsBBRef;          // a Metrics instance (or { namespace, defaultDimensions? })
-  logger?: LoggerBBRef;            // a Logger instance (or { fullId })
-  tracer?: TracerBBRef;            // a Tracer instance (or { fullId })
-  metricConfigs?: MetricConfig[];
+  logs?: boolean;                  // show the per-compute logs section (default true)
+  traces?: boolean;                // show the per-compute traces section (default true)
+  metrics?: MetricsSource | MetricsSource[];  // app-scoped metric source(s) + their metricConfigs
   defaultTimeRange?: string;       // ISO 8601 duration, default '-PT3H'
-  dashboardName?: string;          // truncated to 255 chars
-  routePath?: string | false;      // default '/aws-blocks/dashboard'; false disables the route
 }
 ```
+
+**Compute-driven in `0.6.0` (`bb-dashboard@0.2.0`).** The dashboard is organized
+**by compute** — it covers every compute in the app (resolved at finalize, so
+construction order doesn't matter) and renders a health section always, a logs
+section (unless `logs: false`), and a traces section only when tracing is enabled
+on that compute (unless `traces: false`). `logs` and `traces` are app-wide display
+toggles applied uniformly to every compute; logs are always captured regardless,
+so `logs: false` only hides the section. The removed `logger` / `tracer`
+(`LoggerBBRef` / `TracerBBRef`) fields are **gone** — the dashboard reads compute
+state directly and Loggers/Tracers are never passed to it. Metrics remain
+app-scoped and are passed via `metrics` (a `MetricsSource` or array, each carrying
+its own `metricConfigs`).
 
 ## The key constraint: metric widgets chart YOUR namespace only
 

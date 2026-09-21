@@ -105,7 +105,13 @@ nothing when there is no active segment.
 
 ## What it provisions
 
-No standalone resources. When `enabled` (the default), it flips the shared
-Lambda's `tracingConfig` to `Active` and attaches an IAM policy allowing
-`xray:PutTraceSegments` and `xray:PutTelemetryRecords`. Locally, mock traces are
-written to `.bb-data/` and logged to stdout.
+No standalone resources. **Presence-gated fleet-wide in `0.6.0`
+(`bb-tracer@0.2.0`):** constructing *any* `Tracer` in the app now enables X-Ray
+active tracing on **every** compute, not just one implicit compute — X-Ray is
+real, costed infrastructure, so it stays off until the app opts in by
+constructing a Tracer. Internally `@aws-blocks/core/cdk` records the Tracer's
+presence (`registerTracer()`) and turns tracing on across all computes at finalize
+(`finalizeTracing()`); `Compute.enableTracing()` is idempotent. When `enabled`
+(the default), it flips each compute's `tracingConfig` to `Active` and attaches an
+IAM policy allowing `xray:PutTraceSegments` and `xray:PutTelemetryRecords`.
+Locally, mock traces are written to `.bb-data/` and logged to stdout.
