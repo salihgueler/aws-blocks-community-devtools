@@ -10,10 +10,11 @@ it with no codegen, both defined in one `aws-blocks/` workspace and deployed wit
 CDK. This file is the map — it routes you to the right block file and the
 top-level references; per-block API detail lives in those files, not here.
 
-**Pinned version.** This skill targets published `@aws-blocks/blocks@0.4.0`
-(2026-09-01, npm `latest`). Changes that landed on `main` **after** that release
-are collected in one place — VERSION-DELTA.md. Anything not listed there is
-assumed shipped in 0.4.0.
+**Pinned version.** This skill targets published `@aws-blocks/blocks@0.6.0`
+(2026-09-17, npm `latest`). Every API claim here is written against that release.
+Individual Building Blocks version independently under the umbrella (e.g.
+`bb-agent@0.4.1`, `bb-data@0.3.0`, `core@0.5.0`, `hosting@0.3.1`); when a claim is
+version-sensitive it names the component version inline.
 
 ## Contents
 
@@ -103,8 +104,7 @@ COMPOSITION-RECIPES.md, NATIVE-CLIENTS.md (Swift/Kotlin/Dart), TROUBLESHOOTING.m
 ## Package entry points (subpath exports)
 
 `@aws-blocks/blocks` exposes distinct entry points; import each symbol from the
-right one (not everything is on the root). Faithful to
-`packages/blocks/package.json`:
+right one (not everything is on the root). The published subpath exports:
 
 | Import path | What it provides |
 |---|---|
@@ -113,7 +113,7 @@ right one (not everything is on the root). Faithful to
 | `@aws-blocks/blocks/client` | The generated frontend client factory (`generateClient`) — normally you import from the app's own `aws-blocks` workspace, not this directly. |
 | `@aws-blocks/blocks/server` | SSR helpers: `withAuth`, `registerCookieProvider`, `clearCookieProviders`. |
 | `@aws-blocks/blocks/ui` | Framework-agnostic auth UI: `Authenticator`, `AuthenticatedContent`, `AccountMenuBar`, `onAuthChange`, `broadcastAuthChange`. |
-| `@aws-blocks/blocks/utils` | Test/dev helpers only — exactly `installCookieJar` and `isServerRunning` (`packages/blocks/src/utils.ts`). Auth state is **not** here: `setAuthState` is a method on `auth.createApi()`, not a `/utils` export. |
+| `@aws-blocks/blocks/utils` | Test/dev helpers only — exactly `installCookieJar` and `isServerRunning`. Auth state is **not** here: `setAuthState` is a method on `auth.createApi()`, not a `/utils` export. |
 | `@aws-blocks/blocks/lambda-handler` | The Lambda entry the generated `index.handler.ts` wires up — you rarely import it by hand. |
 | `@aws-blocks/blocks/scripts` | Programmatic access to the dev-server / client-gen / spec scripts the npm scripts call. |
 | `@aws-blocks/blocks/vendorize` | The eject engine behind the `blocks-vendorize` bin (see below). |
@@ -276,8 +276,7 @@ the hosting block file. Multi-stage CI/CD (per-branch CodePipeline, approvals,
 cross-account) is the pipeline block file.
 
 **Next.js server components** need the API URL at request time. The frontend
-client reads it from the `BLOCKS_API_URL` env var (verified in
-`packages/core/src/client/index.ts`); the Hosting construct injects it into the
+client reads it from the `BLOCKS_API_URL` env var; the Hosting construct injects it into the
 SSR Lambda automatically on a real deploy. For **local** Next.js dev, point it at
 the full RPC endpoint — `http://localhost:3000/aws-blocks/api`, never `/api`:
 
@@ -291,7 +290,7 @@ render) is handled by `withAuth` from `@aws-blocks/blocks/server` — see the
 
 ### Production checklist
 
-Before a real `deploy`, confirm each of these — none is on by default:
+Before a real `deploy`, confirm each of these:
 
 - **CORS:** set `CORS_ALLOWED_ORIGINS` explicitly (comma-separated anchored
   regexes) — never a wildcard. The Hosting construct is same-origin so it needs
@@ -299,10 +298,11 @@ Before a real `deploy`, confirm each of these — none is on by default:
 - **Rate limiting / WAF:** API Gateway throttling and AWS WAF are **not** added
   by the framework — wire them via CDK for any public-facing app.
 - **Cross-domain auth:** pass `crossDomain: true` to an auth constructor when the
-  frontend and API are on different domains (sets `SameSite=None; Secure;
-  Partitioned` cookies).
-- **Monitoring:** enable Hosting `monitoring` so CloudFront 5xx / SSR Lambda
-  errors reach an SNS topic. See `blocks/hosting.md`.
+  frontend and API are on different domains (AuthCognito/AuthOIDC set
+  `SameSite=None; Secure; Partitioned`; AuthBasic sets `SameSite=None; Secure`).
+- **Monitoring:** Hosting `monitoring` is **on by default** (`{ enabled: true }`) —
+  confirm you haven't disabled it, and set `snsTopicArn` to route CloudFront 5xx /
+  SSR Lambda alarms to your own topic. See `blocks/hosting.md`.
 - **IAM:** do not hand-write broad `*` IAM policies — each block already grants
   least-privilege scoped to its own resources.
 
@@ -364,4 +364,3 @@ enough.
 - Multi-block recipes → COMPOSITION-RECIPES.md
 - Common errors & fixes → TROUBLESHOOTING.md
 - Native mobile/desktop clients → NATIVE-CLIENTS.md
-- Post-0.4.0 / main-only changes → VERSION-DELTA.md

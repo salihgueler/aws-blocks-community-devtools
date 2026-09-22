@@ -132,8 +132,7 @@ interface RetrieveResult {
 }
 ```
 
-`maxResults` is normalized by `normalizeMaxResults`
-(`packages/bb-knowledge-base/src/normalize.ts`): a **finite integer** is clamped
+`maxResults` is normalized by `normalizeMaxResults`: a **finite integer** is clamped
 to the range **1–100** (`Math.min(Math.max(n, 1), 100)`), and `undefined`/`null`
 falls back to the default **10**. Any **non-integer** value (`1.5`, `NaN`,
 `Infinity`) — which slips in when the option is built from a query string or

@@ -2,7 +2,7 @@
 
 `@aws-blocks/create-blocks-app` creates a new Blocks app from a template, adds
 Blocks to an existing project, or overlays Blocks onto an Amplify Gen 2 backend.
-Its bin is `create-blocks-app`; source is `packages/create-blocks-app/src/index.ts`.
+Its bin is `create-blocks-app`.
 
 ## Contents
 

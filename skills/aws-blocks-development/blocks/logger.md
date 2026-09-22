@@ -14,7 +14,7 @@ cross-service request tracing (use Tracer).
 
 - Import and minimal example
 - `LoggingOptions`
-- Level precedence: constructor > `LOG_LEVEL` env > `'info'`
+- Level: constructor option, default `'info'`
 - Methods are synchronous
 - Log entry format
 - Errors
@@ -30,7 +30,6 @@ import { Logger } from '@aws-blocks/blocks';
 const logger = new Logger(scope, 'log', {
   level: 'info',
   defaultContext: { service: 'my-app' },
-  retention: 30,
 });
 
 logger.info('User signed in', { userId: 'u123' });
@@ -47,30 +46,24 @@ requestLogger.info('Processing');   // entry carries { service, requestId }
 interface LoggingOptions {
   level?: LogLevel;               // 'debug' | 'info' | 'warn' | 'error'
   defaultContext?: Record<string, unknown>;
-  retention?: RetentionDays;
 }
 ```
 
-- `level` sets the minimum; anything below is dropped. See the precedence rule
-  below for how it interacts with the `LOG_LEVEL` env var.
+- `level` sets the minimum; anything below is dropped. Default `'info'`.
 - `defaultContext` merges into every entry. The reserved structural keys
   `level`, `message`, `timestamp`, `logger`, and `traceId` are owned by the
   logger — any such keys in your context (or a `child()` context) are ignored so
   they cannot corrupt the entry.
-- `retention` accepts **only** these fixed day values (the AWS CloudWatch API
-  set): `1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096,
-  1827, 2192, 2557, 2922, 3288, 3653`. Any other number is a type error. When
-  set, the block creates a CloudWatch LogGroup with that retention and
-  `RemovalPolicy.DESTROY`; when omitted, Lambda's auto-created log group applies
-  and logs never expire. Ignored in local dev.
+- **Retention moved to the compute in `0.6.0`** (`bb-logger@0.2.0`). `LoggingOptions`
+  no longer has a `retention` field; logging is always on and you set log
+  retention with `logRetention` on the compute (e.g. via `BlocksPresets`), not on
+  the Logger. A `retention` key on `LoggingOptions` is now a type error.
 
-## Level precedence: constructor > `LOG_LEVEL` env > `'info'`
+## Level: constructor option, default `'info'`
 
-The effective level is resolved in that order. An explicit `level` in options
-always wins; with no `level`, the `LOG_LEVEL` environment variable is used; with
-neither, it defaults to `'info'`. Note the split: passing `level` in the CDK
-layer sets the `LOG_LEVEL` env var on the shared handler, so a level configured
-at construction reaches the runtime that way as well.
+The effective level is the `level` you pass in options, or `'info'` when omitted.
+**`Logger` no longer reads the `LOG_LEVEL` environment variable** as of `0.6.0`
+(`bb-logger@0.2.0`) — set the level explicitly in options.
 
 ## Methods are synchronous
 
@@ -120,6 +113,6 @@ Import `LoggingErrors` from `@aws-blocks/blocks`.
 
 ## What it provisions
 
-Nothing by default — logs flow through Lambda's own log group. With `retention`
-set, one CloudWatch LogGroup with that retention policy and
-`RemovalPolicy.DESTROY`.
+Nothing of its own — logs flow through the compute's log group. Log retention is
+a compute-level setting (`logRetention`), not a Logger option; when unset, the
+Lambda's auto-created log group applies and logs never expire.

@@ -133,13 +133,17 @@ interface CronJobEvent<T = void> {
 
 ## Errors
 
-Import `CronJobErrors` from `@aws-blocks/blocks`. Both are thrown at construction
-time (fail-fast), so you see them at synth, not at runtime.
+Import `CronJobErrors` from `@aws-blocks/blocks`. `InvalidSchedule`,
+`InvalidTimezone`, and `UnsupportedCompute` are thrown at construction time
+(fail-fast), so you see them at synth; `ScheduleNotSupported` is a local-mock
+runtime condition.
 
 | Constant | `name` value | Cause |
 |---|---|---|
 | `InvalidSchedule` | `InvalidScheduleExpression` | `schedule` is not a valid `rate(...)` or `cron(...)` expression |
 | `InvalidTimezone` | `InvalidTimezoneExpression` | `timezone` is not a valid IANA timezone |
+| `ScheduleNotSupported` | `ScheduleNotSupportedInMock` | the schedule can't be simulated by the local mock |
+| `UnsupportedCompute` | `UnsupportedComputeException` | the resolved compute is not Lambda |
 
 ## What it provisions
 

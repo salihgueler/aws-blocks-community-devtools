@@ -100,7 +100,7 @@ per-message and the contract is simply:
 message is redelivered (its `receiveCount` increments toward `maxRetries` → DLQ);
 every message that returned normally is deleted. You do **not** return a special
 shape — the framework converts a thrown handler into `{ batchItemFailures }` for
-you (verified in `packages/core/src/lambda-handler.ts`).
+you.
 
 ```typescript
 const job = new AsyncJob<{ id: string }>(scope, 'process', {
@@ -192,9 +192,9 @@ interface AsyncJobTransition { state: AsyncJobState; at: string; attempt: number
 is append-only, so a single read after the job settled still shows it passed
 through `processing` — you do not need to poll to observe intermediate states.
 `attempt` is **`0` for the `queued` transition** and **`1` on first delivery**,
-incrementing on each redelivery (`bb-async-job/src/types.ts:70`, `status.ts:166`).
+incrementing on each redelivery.
 Status records **expire after 24 h** — `STATUS_RETENTION_SECONDS = 86_400`, written
-as a per-record TTL (`status.ts:21`), so `getStatus` on a day-old `jobId` returns
+as a per-record TTL, so `getStatus` on a day-old `jobId` returns
 `null`.
 
 `waitUntilComplete(jobId, options?)` resolves on either terminal state
@@ -227,6 +227,7 @@ Import `AsyncJobErrors` from `@aws-blocks/blocks`; match with `isBlocksError`.
 | `Timeout` | `AsyncJobTimeoutException` | `waitUntilComplete` gave up before a terminal state |
 | `StatusNotTracked` | `StatusNotTrackedException` | `getStatus`/`waitUntilComplete` without `trackStatus: true` |
 | `InvalidOption` | `InvalidOptionException` | `batchSize`/`maxBatchingWindowSeconds` out of range (thrown at synth) |
+| `UnsupportedCompute` | `UnsupportedComputeException` | the resolved compute is not Lambda (thrown at synth) |
 
 For a payload over 256 KB, store the blob in FileBucket or KVStore and put a
 reference key in the job payload.

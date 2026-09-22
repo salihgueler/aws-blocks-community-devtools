@@ -215,7 +215,7 @@ const myPosts = await scoped.query<Post>(sql`SELECT * FROM posts`);
 ```
 
 `db.withRLS(...)` is **async** — it returns `Promise<RLSEnabledDatabase>`, so you
-must `await` it before running queries (`bb-data/src/index.aws.ts:131`). `withRLS`
+must `await` it before running queries. `withRLS`
 runs queries in a transaction with `SET LOCAL ROLE` and JWT claims set.
 Locally (PGlite), the role must exist or queries fail with
 `role "authenticated" does not exist` — create it in a migration
@@ -226,7 +226,7 @@ Locally (PGlite), the role must exist or queries fail with
 > `db.transaction()` **bypass RLS** and run unscoped unless you explicitly call
 > `db.withRLS({ userId })` yourself. Setting `rlsPolicy: 'enforce'` does not add
 > row scoping to hand-written queries — it is a metadata/documentation flag, not
-> a query-path guard (`bb-data/src/types.ts:22-31`). Hand-write a query without
+> a query-path guard. Hand-write a query without
 > `withRLS` and you have a silent tenant-isolation hole.
 
 `db.crud({ tables, auth })` generates flat typed methods per table —

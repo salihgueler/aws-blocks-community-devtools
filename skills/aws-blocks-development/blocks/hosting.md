@@ -17,13 +17,13 @@ production-deploy concern.
 ## Which `Hosting` this is
 
 This file documents the **core `Hosting` construct** exported from
-`@aws-blocks/blocks/cdk` (source: `packages/core/src/hosting.ts`). That is what
+`@aws-blocks/blocks/cdk`. That is what
 every scaffolded `aws-blocks/index.cdk.ts` imports and constructs. It wraps the
 lower-level L3 `HostingConstruct` with Blocks conventions (runs the build,
 detects the framework, deploys `config.json`, wires the API proxy).
 
-There is a **separate** L3 surface — the `defineHosting` / `HostingProps` type in
-`packages/hosting/src/types.ts` — with a wider option set (`environment`,
+There is a **separate** L3 surface — the `defineHosting` / `HostingProps` type
+from `@aws-blocks/hosting` — with a wider option set (`environment`,
 `storage.encryption`, `cdn.ssrDefaultTtl`, `compute.warmup`, `compute.tracing`,
 `storage.inventory`). Those are NOT props of the construct documented here; do
 not pass them to `new Hosting(...)`. When a caller means the L3, they are in a
@@ -66,7 +66,7 @@ build output already exists on disk.
 
 ## `HostingProps`
 
-Faithfully from `packages/core/src/hosting.ts`:
+The `Hosting` construct options:
 
 ```typescript
 interface HostingProps {

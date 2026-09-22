@@ -16,8 +16,8 @@ loop and is what the scaffolded templates ship.
 
 ## Test Setup Pattern
 
-This is the real setup boilerplate from
-`packages/create-blocks-app/templates/*/test/e2e.test.ts`. Type the client
+This is the real setup boilerplate from a scaffolded project's
+`test/e2e.test.ts`. Type the client
 statically (`typeof ApiType`) but assign it via a dynamic `import()` inside
 `test.before()`, so the dev server is up before the module resolves:
 
@@ -75,8 +75,7 @@ test('todos: create', async () => {
 
 ## installCookieJar & isServerRunning
 
-Both are exported from `@aws-blocks/blocks/utils`
-(`packages/blocks/src/utils.ts`).
+Both are exported from `@aws-blocks/blocks/utils`.
 
 `installCookieJar()` patches `global.fetch` with a cookie jar so `Set-Cookie`
 response headers persist across requests — Node's native fetch does not do this,

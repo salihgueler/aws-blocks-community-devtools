@@ -38,7 +38,7 @@ Use `"module": "ES2022"` and `"moduleResolution": "bundler"` in `tsconfig.json`.
 Do not use `nodenext`.
 
 **`Blocks API URL not configured`**
-Thrown by the client (`packages/core/src/client/index.ts`) when it can't find a
+Thrown by the client when it can't find a
 config. The message lists the three things to ensure:
 1. you ran `npm run deploy` (which deploys `config.json`), or
 2. the SSR Lambda has the `BLOCKS_API_URL` env var, or
@@ -49,7 +49,7 @@ Locally this means the dev server (`npm run dev`) is running.
 The previous dev server didn't shut down cleanly. Delete `.bb-data/` and restart.
 
 **DistributedTable `query()`: `Index 'X' not found`**
-Message built by `bb-distributed-table/src/errors.ts` (`indexNotFound`). The
+Message built by the DistributedTable error `indexNotFound`. The
 `index` option on `query()` must be an **index name from the `indexes` config**,
 not a field name. `table.query({ index: "userId", ... })` fails unless an index
 literally named `"userId"` exists. Define indexes explicitly and query by those
@@ -63,15 +63,14 @@ create a GSI on it, and query `type: { equals: "USER" }`.
 
 **`404 Not Found` curling API endpoints REST-style**
 Blocks uses JSON-RPC 2.0, not REST. All calls POST to a single endpoint,
-`/aws-blocks/api` (`BLOCKS_RPC_PREFIX` in `packages/core/src/constants.ts`).
+`/aws-blocks/api` (the `BLOCKS_RPC_PREFIX` constant).
 Method format is `"namespace.methodName"` with params as a positional array. Do
 not curl per-method paths like `/api/greet`.
 
 **CORS errors in production**
 Set `CORS_ALLOWED_ORIGINS` on the Lambda with regex patterns (e.g.
 `https://.*\.example\.com`). The Hosting construct auto-adds the CloudFront
-domain; localhost is auto-allowed in dev/sandbox
-(`packages/core/src/cors.ts`, `blocks-backend.ts`).
+domain; localhost is auto-allowed in dev/sandbox.
 
 **SSR auth failures (401 in server components)**
 Use `withAuth()` from `@aws-blocks/blocks/server` to forward cookies in
@@ -80,7 +79,7 @@ for graceful unauthenticated rendering.
 
 ## AsyncJob
 
-Error names come from `AsyncJobErrors` in `packages/bb-async-job/src/errors.ts`.
+Error names come from `AsyncJobErrors`.
 The full set:
 
 | `AsyncJobErrors.*` | `name` value | Thrown when |
@@ -100,7 +99,7 @@ handler errors.
 
 ## Agent
 
-Error names come from `AgentErrors` in `packages/bb-agent/src/errors.ts`
+Error names come from `AgentErrors`
 (`PersistenceRequired`, `InvalidModelConfig`, `ModelUnavailable`,
 `BrowserNotSupported`, `StreamFailed`, `InterruptRequired`; each maps to a
 `...Exception` name).
@@ -136,7 +135,7 @@ configured `inferenceOnly: true`. Remove `inferenceOnly`, pass `options.userId`,
 or avoid persistence calls.
 
 **`BrowserNotSupportedException`**
-(`AgentErrors.BrowserNotSupported`, `bb-agent/src/index.browser.ts`.) The Agent BB
+(`AgentErrors.BrowserNotSupported`.) The Agent BB
 is server-side only and was imported into browser code. Import it only in the
 backend (`aws-blocks/index.ts`); the frontend reaches it through API methods.
 
@@ -147,7 +146,7 @@ This is a **raw PostgreSQL/PGlite error**, not a Blocks-defined one — Blocks d
 not produce this string. The `pg-error-translator` renames such errors to
 `DatabaseErrors.QueryFailed` (`name = 'QueryFailedException'`) but passes the
 Postgres **message** through verbatim (`bb-data/src/engines/pg-error-translator.ts`;
-error set at `bb-data/src/errors.ts:10-16`). Cause: migrations haven't run, or the
+error set on the Database block). Cause: migrations haven't run, or the
 table name is wrong. Migration files in `migrations/` need numeric prefixes (e.g.
 `001_create_users.sql`).
 
@@ -178,7 +177,7 @@ await db.execute(sql`INSERT INTO t (tags) VALUES (${tagsArr}::text[])`);
 ## Authentication
 
 **`signOut()` on `authApi` doesn't exist**
-`AuthStateApi` (`packages/auth-common/src/ui.ts`) exposes `getAuthState()` and
+`AuthStateApi` (from `@aws-blocks/blocks/ui`) exposes `getAuthState()` and
 `setAuthState(input)`. `setAuthState` takes a **single action-payload object**;
 sign out with:
 ```typescript
@@ -216,15 +215,15 @@ reuse across channels).
 
 ## Hosting & deployment
 
-Hosting errors are a `HostingError` (`packages/hosting/src`) whose `name` is the
+Hosting errors are a `HostingError` whose `name` is the
 code below.
 
 **``AWS credentials could not be verified for `npm run <command>` (<errorName>).``**
 A pre-synth credential check (shipped in `@aws-blocks/blocks@0.4.0`, commit
-`0ac3879`, #424) failed before `npm run sandbox` / `npm run deploy` provisioned
-anything (`core/src/scripts/preflight-credentials.ts:127`). It **fails fast only
-on credential-class errors** — the seven names in `CREDENTIAL_ERROR_NAMES`
-(`preflight-credentials.ts:27-35`): `CredentialsProviderError`, `ExpiredToken`,
+`0ac3879`, #424; still present at the current `0.6.0` pin) failed before `npm run sandbox` / `npm run deploy` provisioned
+anything. It **fails fast only
+on credential-class errors** — the seven names in `CREDENTIAL_ERROR_NAMES`:
+`CredentialsProviderError`, `ExpiredToken`,
 `ExpiredTokenException`, `InvalidClientTokenId`, `UnrecognizedClientException`,
 `SignatureDoesNotMatch`, `TokenRefreshRequired`. Fix: refresh your credentials
 (re-auth / `aws sso login` / renew the token) and re-run. Two non-blocking cases:
