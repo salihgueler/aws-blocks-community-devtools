@@ -50,9 +50,15 @@ if (api?.methods?.length) {
 }
 
 // Cloud RPC proves the deployed path independently of the local dev server.
-const cloudRpc = await client.callTool({ name: "blocks_rpc", arguments: { method: `${api.id}.${api.methods[0].name}`, params: [], env: "cloud" } });
-const cloudParsed = JSON.parse(firstText(cloudRpc));
-console.log("cloud rpc: status", cloudParsed.status, "| ok:", cloudParsed.ok);
+// Only meaningful when the stack is deployed; otherwise the tool returns a
+// plain-text isError result, not JSON.
+if (project.environments.cloud.stackFound && api?.methods?.length) {
+  const cloudRpc = await client.callTool({ name: "blocks_rpc", arguments: { method: `${api.id}.${api.methods[0].name}`, params: [], env: "cloud" } });
+  const cloudParsed = JSON.parse(firstText(cloudRpc));
+  console.log("cloud rpc: status", cloudParsed.status, "| ok:", cloudParsed.ok);
+} else {
+  console.log("cloud rpc: skipped (no deployed stack)");
+}
 
 // Unknown block must fail loudly. MCP returns tool failures as isError
 // results, not protocol rejections, so check the flag.

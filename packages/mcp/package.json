@@ -39,17 +39,17 @@
     "prepublishOnly": "npm run typecheck && npm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "zod": "3.25.76",
-    "@aws-sdk/client-cognito-identity-provider": "3.1114.0",
-    "@aws-sdk/client-dynamodb": "3.1114.0",
-    "@aws-sdk/lib-dynamodb": "3.1114.0",
-    "@aws-sdk/client-cloudformation": "3.1114.0",
-    "@aws-sdk/client-sts": "3.1114.0",
-    "ts-morph": "24.0.0"
+    "@aws-sdk/client-cognito-identity-provider": "3.1146.0",
+    "@aws-sdk/client-dynamodb": "3.1146.0",
+    "@aws-sdk/lib-dynamodb": "3.1146.0",
+    "@aws-sdk/client-cloudformation": "3.1146.0",
+    "@aws-sdk/client-sts": "3.1146.0",
+    "ts-morph": "28.0.0"
   },
   "devDependencies": {
     "@aws-blocks-devtools/core": "*",
-    "tsup": "8.5.0"
+    "tsup": "8.5.1"
   }
 }
