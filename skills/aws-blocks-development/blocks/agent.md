@@ -206,6 +206,13 @@ region**. Missing access does not fail `cdk synth` or `cdk deploy` — it surfac
 at **runtime** as `AgentErrors.ModelUnavailable` when the health check can't
 resolve the model. Enable model access before the first real turn.
 
+Since `bb-agent@0.7.0` (umbrella `0.9.0`), a refusal Bedrock returns at
+**invoke** time (the health check passed, but the account has not submitted
+Anthropic's one-time use case details, has not activated the model's AWS
+Marketplace subscription, or is not entitled to the model) also surfaces as
+`AgentErrors.ModelUnavailable`, with a message that says which of these to fix.
+Catch it with `isBlocksError(e, AgentErrors.ModelUnavailable)`.
+
 ## Tools
 
 `tools` MUST be a **callback** — a plain array or object is rejected at compile

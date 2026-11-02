@@ -277,6 +277,25 @@ Locally (PGlite), the role must exist or queries fail with
 `role "authenticated" does not exist` — create it in a migration
 (`CREATE ROLE authenticated;`).
 
+**PostgreSQL 16+ (including Aurora) needs a role grant** (`bb-data@0.5.0`). The
+database user must be a member of each RLS role, so add this to a migration
+after creating the roles:
+
+```sql
+GRANT authenticated TO CURRENT_USER;
+GRANT anon TO CURRENT_USER;
+```
+
+Without it the role switch is refused and `withRLS()` fails with a 500
+`QueryFailed`; the server log names the missing grant.
+
+**`claims` can't override `sub` or `role`** (breaking in `bb-data@0.5.0`). In
+`withRLS({ userId, role, claims })`, `request.jwt.claims.sub` always comes from
+`userId` and `role` always from `role`, so a policy reading either claim sees the
+server-derived value. Other claims still pass through. If you relied on
+`claims.sub` or `claims.role`, pass the value as `userId` / `role` or use a
+different claim name.
+
 > **`rlsPolicy: 'enforce'` scopes ONLY `db.crud()`.** The generated CRUD methods
 > always route through `withRLS()`, but raw `db.query()` / `db.execute()` /
 > `db.transaction()` **bypass RLS** and run unscoped unless you explicitly call
@@ -313,6 +332,26 @@ try {
 | `DatabaseErrors.TransactionFailed` | `TransactionFailedException` |
 | `DatabaseErrors.UniqueConstraintViolation` | `UniqueConstraintViolationException` |
 | `DatabaseErrors.SerializationFailure` | `SerializationFailureException` |
+| `DatabaseErrors.PermissionDenied` | `PermissionDeniedException` (403) |
+| `DatabaseErrors.CheckViolation` | `CheckViolationException` (400) |
+| `DatabaseErrors.NotNullViolation` | `NotNullViolationException` (400) |
+| `DatabaseErrors.ForeignKeyViolation` | `ForeignKeyViolationException` (409) |
+
+**Named 4xx errors (breaking in `bb-data@0.5.0` / `@aws-blocks/blocks@0.9.0`).**
+These Postgres failures used to surface as a generic 500 `QueryFailed`. On every
+engine (local PGlite, `pg`, Data API) they now map to:
+
+| Postgres error | SQLSTATE | Error | HTTP |
+|---|---|---|---|
+| RLS rejection, or no grant for the role | `42501` | `PermissionDenied` | 403 |
+| Check constraint | `23514` | `CheckViolation` | 400 |
+| Not-null constraint | `23502` | `NotNullViolation` | 400 |
+| Foreign key | `23503` | `ForeignKeyViolation` | 409 |
+
+Each carries a fixed message (the driver text stays server-side as `cause`) and
+none is retriable. They cross the wire, so the client can match them with
+`isBlocksError` too. Code that matched these with `DatabaseErrors.QueryFailed`,
+or treated them as 500s, must match the new names.
 
 <details><summary>PGlite array-column quirk</summary>
 
@@ -327,3 +366,13 @@ VPC with isolated subnets (no NAT), RDS Proxy for connection pooling, a Secrets
 Manager secret with auto-rotated credentials, a CustomResource migration Lambda,
 and IAM grants (`rds-data:*`, `secretsmanager:GetSecretValue`) to the app Lambda.
 Connecting via `fromExisting()` skips all provisioning.
+
+**VPC placement (`0.9.0`).** A `Database` joins only a VPC you pass as
+`defaults.vpc.network`. It never joins the shared VPC Blocks derives when you add
+a container `Compute`, because moving an existing Aurora cluster into a new VPC
+is a CloudFormation replacement that destroys the database. With no customer VPC
+it keeps building its own, as before. See [compute](compute.md).
+
+A script that imports the backend under local dev (seed script, one-off CLI,
+test) now exits when it finishes; before `0.9.0` the local engine held the
+process open.

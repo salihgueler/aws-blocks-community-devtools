@@ -1,6 +1,6 @@
 ---
 name: aws-blocks-development
-description: Builds fullstack TypeScript apps on AWS with @aws-blocks/blocks — scaffolding, correct import paths, the JSON-RPC API model, and deployment. Use when working with @aws-blocks/blocks, the create-blocks-app CLI, or any Building Block (KVStore, DistributedTable, Database, DistributedDatabase, FileBucket, Realtime, EmailClient, AsyncJob, CronJob, Agent, KnowledgeBase, AppSetting, Secret, AuthBasic, AuthCognito, AuthOIDC, Logger, Metrics, Tracer, Dashboard), and with Scope, ApiNamespace, RawRoute, BlocksStack, Hosting, or Pipeline.
+description: Builds fullstack TypeScript apps on AWS with @aws-blocks/blocks — scaffolding, correct import paths, the JSON-RPC API model, and deployment. Use when working with @aws-blocks/blocks, the create-blocks-app CLI, or any Building Block (KVStore, DistributedTable, Database, DistributedDatabase, FileBucket, Realtime, EmailClient, AsyncJob, CronJob, Compute, Agent, KnowledgeBase, AppSetting, Secret, AuthBasic, AuthCognito, AuthOIDC, Logger, Metrics, Tracer, Dashboard), and with Scope, ApiNamespace, RawRoute, BlocksStack, Hosting, or Pipeline.
 ---
 
 # AWS Blocks Development
@@ -10,12 +10,47 @@ it with no codegen, both defined in one `aws-blocks/` workspace and deployed wit
 CDK. This file is the map — it routes you to the right block file and the
 top-level references; per-block API detail lives in those files, not here.
 
-**Pinned version.** This skill targets published `@aws-blocks/blocks@0.8.0`
-(2026-10-16, npm `latest`). Every API claim here is written against that release.
+**Pinned version.** This skill targets published `@aws-blocks/blocks@0.9.0`
+(2026-11-02, npm `latest`). Every API claim here is written against that release.
 Individual Building Blocks version independently under the umbrella (e.g.
-`bb-agent@0.6.0`, `bb-kv-store@0.3.1`, `bb-realtime@0.4.0`, `bb-data@0.4.0`,
-`bb-secret@0.2.0`, `core@0.7.0`, `hosting@0.4.1`); when a claim is
-version-sensitive it names the component version inline.
+`bb-agent@0.7.0`, `bb-kv-store@0.4.0`, `bb-realtime@0.5.0`, `bb-data@0.5.0`,
+`bb-secret@0.3.0`, `bb-compute@0.2.0`, `core@0.8.0`, `hosting@0.5.0`); when a
+claim is version-sensitive it names the component version inline.
+
+**Breaking in `0.9.0`** (behavior changes that reach apps already deployed):
+
+- **Per-namespace API paths.** The typed client now POSTs to
+  `/aws-blocks/api/{namespace}`, where `{namespace}` is the export name. The bare
+  `/aws-blocks/api` still works but only reaches the default compute. Deploy the
+  backend before, or together with, a frontend built against 0.9.0. If you pass
+  `ApiNamespaceClientOptions.url`, pass the base URL (ending in `/aws-blocks/api`);
+  the client appends `/{namespace}` itself. See [api-namespace](blocks/api-namespace.md).
+- **`Secret` is read-only at runtime by default.** `put()` exists only with
+  `allowRuntimeWrite: true`. See [secret](blocks/secret.md).
+- **`Database` errors are named 4xx errors** (`PermissionDenied` 403,
+  `CheckViolation` 400, `NotNullViolation` 400, `ForeignKeyViolation` 409) instead
+  of a generic 500 `QueryFailed`. `withRLS` claims can no longer override `sub` or
+  `role`. See [database](blocks/database.md).
+- **`stubIdp()` providers only work in local dev and sandbox deploys.** Restart
+  `npm run sandbox` once after upgrading. See [auth-oidc](blocks/auth-oidc.md).
+- **Mock entries fail closed when deployed.** A backend bundled without the
+  `aws-runtime` condition now throws instead of running in-memory stubs.
+- **Node clients resend a call once** when the connection closes before response
+  headers arrive, so delivery is at-least-once. Make such methods idempotent, or
+  pass `retryStaleConnection: false`.
+- **`EmailClient` validates addresses before calling SES**, and the execution role
+  gets only `ses:SendEmail` and `ses:SendBulkEmail`. See
+  [email-client](blocks/email-client.md).
+- **Synth refuses a renamed or removed stateful block** whose baseline file is
+  still under `aws-blocks/baselines/<stack>/`. Restore the old id, or re-baseline
+  on purpose.
+- **Telemetry:** a project config can no longer turn telemetry back on after a
+  global `blocks-telemetry --disable --global`.
+
+**New in `0.9.0`:** the [`Compute`](blocks/compute.md) Building Block (run an
+`ApiNamespace`, `AsyncJob`, `CronJob` or a whole `Scope` on its own serverless or
+container compute), `apiWaf`, `defaults.permissionsBoundary`, FileBucket KMS and
+Object Lock, Hosting `compute.type: 'web-function'`, and `npm run sandbox:deploy`.
 
 **Breaking in `0.8.0`:** `BlocksStack.handler`, `BlocksBackend.handler` and
 `Scope.handler` are **removed**. Grant to `executionRole` and inject config with
@@ -103,7 +138,7 @@ Core (`api-namespace`, `raw-route`) and the JSON-RPC wire model are in
 | Data | [kv-store](blocks/kv-store.md), [distributed-table](blocks/distributed-table.md), [database](blocks/database.md), [distributed-database](blocks/distributed-database.md) |
 | Storage | [file-bucket](blocks/file-bucket.md) |
 | Messaging | [realtime](blocks/realtime.md), [email-client](blocks/email-client.md) |
-| Compute | [async-job](blocks/async-job.md), [cron-job](blocks/cron-job.md) |
+| Compute | [compute](blocks/compute.md), [async-job](blocks/async-job.md), [cron-job](blocks/cron-job.md) |
 | AI | [agent](blocks/agent.md), [knowledge-base](blocks/knowledge-base.md) |
 | Config | [app-setting](blocks/app-setting.md), [secret](blocks/secret.md) |
 | Observability | [logger](blocks/logger.md), [metrics](blocks/metrics.md), [tracer](blocks/tracer.md), [dashboard](blocks/dashboard.md) |
@@ -129,7 +164,7 @@ right one (not everything is on the root). The published subpath exports:
 | `@aws-blocks/blocks/cdk` | CDK-only surface: `BlocksStack`, `Hosting`, `BlocksPresets`, `Pipeline` (also re-exported), CDK helpers. Used from `index.cdk.ts`. |
 | `@aws-blocks/blocks/client` | The generated frontend client factory (`generateClient`) — normally you import from the app's own `aws-blocks` workspace, not this directly. |
 | `@aws-blocks/blocks/server` | SSR helpers: `withAuth`, `registerCookieProvider`, `clearCookieProviders`. |
-| `@aws-blocks/blocks/ui` | Framework-agnostic auth UI: `Authenticator`, `AuthenticatedContent`, `AccountMenuBar`, `onAuthChange`, `broadcastAuthChange`, plus the theme layer (`injectTheme`, `THEME_CSS`, `THEME_STYLE_ID`). |
+| `@aws-blocks/blocks/ui` | Framework-agnostic auth UI: `Authenticator`, `AuthenticatedContent`, `AccountMenuBar`, `onAuthChange`, `broadcastAuthChange`, `submitAuthAction` and `StatusMessage` (both re-exported here since `0.9.0`), plus the theme layer (`injectTheme`, `THEME_CSS`, `THEME_STYLE_ID`). |
 | `@aws-blocks/blocks/theme` | Design tokens **only** (`injectTheme`, `THEME_CSS`, `THEME_STYLE_ID`) with no `Authenticator` / WebAuthn surface — for a non-auth host that wants the `--bb-*` custom properties and `.bb-*` classes. New in `0.8.0`. |
 | `@aws-blocks/blocks/utils` | Test/dev helpers only — exactly `installCookieJar` and `isServerRunning`. Auth state is **not** here: `setAuthState` is a method on `auth.createApi()`, not a `/utils` export. |
 | `@aws-blocks/blocks/lambda-handler` | The Lambda entry the generated `index.handler.ts` wires up — you rarely import it by hand. |
@@ -279,6 +314,7 @@ success, and carries the URLs.
 
 ```bash
 npm run sandbox          # ephemeral AWS sandbox (backend only — no Hosting)
+npm run sandbox:deploy   # same sandbox, deploys once and exits (scripts, CI, agents)
 npm run sandbox:destroy  # tear the sandbox down
 npm run deploy           # production deploy (backend + Hosting frontend)
 npm run destroy          # tear the production stack down (ships in the template)
@@ -286,6 +322,14 @@ npm run destroy          # tear the production stack down (ships in the template
 
 Never run `cdk deploy` directly. Sandbox is backend-only by design — the
 scaffolded `index.cdk.ts` constructs `Hosting` only when not in sandbox mode.
+
+`npm run sandbox:deploy` (new in `0.9.0`) runs the sandbox script with
+`--deploy-only`: it deploys once, writes `.blocks-sandbox/config.json`, prints
+the `BLOCKS_DEPLOYED` line and exits. Prefer it over `npm run sandbox` when you
+only need a deployed backend to test against. An app scaffolded before 0.9.0
+can adopt it by adding `deployOnly: process.argv.includes('--deploy-only')` to
+the `startSandbox({ ... })` call in `aws-blocks/scripts/sandbox.ts` and a
+`"sandbox:deploy": "tsx aws-blocks/scripts/sandbox.ts --deploy-only"` script.
 
 `npm run deploy -- --wait-live` (opt-in, `0.8.0`) holds the `BLOCKS_DEPLOYED`
 line until the new frontend build is confirmed served. `cdk deploy` returning is
@@ -374,9 +418,22 @@ Before a real `deploy`, confirm each of these:
   origin does. See [CORE-ARCHITECTURE.md](CORE-ARCHITECTURE.md) § CORS.
 - **Rate limiting / WAF:** API Gateway stage throttling comes from
   `defaults.throttling` (production preset 1000 rps / 2000 burst, sandbox
-  200 / 400); raise it with a spread if you expect more. AWS WAF is **not** added
-  for the API; wire it via CDK for a public-facing app (Hosting has its own `waf`
-  prop for the CloudFront side).
+  200 / 400); raise it with a spread if you expect more. AWS WAF for the API is
+  off by default. Since `core@0.8.0` (umbrella `0.9.0`), set `apiWaf` on
+  `BlocksStack` / `BlocksBackend` for a public-facing app:
+  `{ enabled: true, rateLimit? }` creates a web ACL with the AWS managed Common
+  and Known Bad Inputs rule sets plus a per-IP rate limit (default 1000 requests
+  per 5 minutes), and `{ webAclArn }` attaches one you already have. It attaches
+  to whichever front door clients use. Hosting keeps its own `waf` prop for the
+  CloudFront side.
+- **Access logging:** a durable stack with API Gateway access logging off now
+  gets the synth warning `blocks:apigateway:access-logging-disabled` (the
+  production preset has it off). `cdk deploy --strict` fails on it. Set
+  `accessLogging: true` in `defaults` to turn it on (this also turns on S3 access
+  logging for every FileBucket).
+- **Permissions boundary:** if your organization requires one, set
+  `defaults.permissionsBoundary` (a policy name, ARN or `IManagedPolicy`). It
+  attaches to every IAM role AWS Blocks creates, including Hosting's roles.
 - **Cross-domain auth:** pass `crossDomain: true` to an auth constructor when the
   frontend and API are on different domains (AuthCognito/AuthOIDC set
   `SameSite=None; Secure; Partitioned`; AuthBasic sets `SameSite=None; Secure`).

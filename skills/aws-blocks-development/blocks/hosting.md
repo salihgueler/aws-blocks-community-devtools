@@ -117,6 +117,31 @@ throws `compute.timeout must be between 1-900 seconds`),
 `reservedConcurrency`, `imageOptimization.reservedConcurrency`, and
 `logRetention` (default `TWO_WEEKS`).
 
+**`compute.type`** (`hosting@0.5.0`, umbrella `0.9.0`): `'lambda'` (default)
+runs the SSR server as a Lambda function behind API Gateway, in every Region.
+`'web-function'` runs the framework's own Node.js server directly on AWS Lambda
+Web Functions behind CloudFront origin access control, with no API Gateway and
+no Lambda Web Adapter. Each execution environment serves many concurrent
+requests and is billed for active CPU, so I/O-bound SSR gets fewer cold starts.
+Limits for `'web-function'`:
+
+- Needs an HTTP-server build (Astro, SvelteKit, Nitro `node-server`, OpenNext
+  `node` wrapper). The built-in adapters produce one automatically.
+- Only in us-east-1, us-east-2, us-west-2, ap-northeast-1 and eu-west-1.
+- Node.js 24, Arm64, 2 GB per environment. `memorySize`, `reservedConcurrency`,
+  `provisionedConcurrency` and `warmup` do not apply; tune with
+  `compute.webFunction` (for example `{ maxEnvironments: 20 }`).
+- Sandbox deploys skip CloudFormation Express Mode after the first deploy, so
+  they take a full deploy each time.
+
+```typescript
+new Hosting(blocksStack, 'Hosting', {
+  root: join(__dirname, '..'),
+  api: blocksStack,
+  compute: { type: 'web-function', webFunction: { maxEnvironments: 20 } },
+});
+```
+
 There is **no `apiUrl` string prop** and there never was — pass the backend stack
 via `api`. There is **no `spaFallback` prop** (it is an internal adapter field,
 see below) and **no `storage` prop** on this construct.

@@ -4,6 +4,16 @@ A single application secret backed by AWS Secrets Manager, read at runtime. Each
 instance is exactly **one** high-value credential, with its own access controls
 and version history. New in `bb-secret@0.2.0` (`@aws-blocks/blocks@0.8.0`).
 
+**Read-only at runtime by default (breaking in `bb-secret@0.3.0` /
+`@aws-blocks/blocks@0.9.0`).** `new Secret(scope, id)` exposes only `get()` and
+`listVersions()`. There is no `put()`: calling it is a compile error, the method
+is absent from the object at runtime, and the execution role gets read-only IAM
+(`GetSecretValue` + `ListSecretVersionIds`, no `PutSecretValue`). Pass
+`allowRuntimeWrite: true` when the app sets or rotates the value itself. Code
+that called `put()` on a default secret, and deployed stacks whose runtime wrote
+the secret, need `allowRuntimeWrite: true` added, or they lose `PutSecretValue`
+on the next deploy.
+
 **Use it for** any credential protecting a production app: third-party API keys,
 OAuth client secrets, database connection strings, webhook signing keys,
 encryption keys.
@@ -42,14 +52,19 @@ import type { SecretOptions, SecretReadOptions, SecretVersion, SecretVersionInfo
 ```typescript
 import { z } from 'zod';
 
-// Opaque string secret — empty until a value is set
+// Opaque string secret, read-only (the default). Empty until set out-of-band.
 const stripeKey = new Secret(scope, 'stripe-api-key');
-await stripeKey.put('sk_live_...');
 const key = await stripeKey.get();            // string | null
+// stripeKey.put(...)                         // compile error: no put() on a read-only Secret
 
-// Typed JSON secret with schema validation
+// Writable secret: the app sets or rotates the value itself
+const token = new Secret(scope, 'self-rotating-token', { allowRuntimeWrite: true });
+await token.put('t-abc123');
+
+// Typed JSON secret with schema validation (writable here so put() exists)
 const dbConfig = new Secret(scope, 'db-config', {
   schema: z.object({ host: z.string(), port: z.number() }),
+  allowRuntimeWrite: true,
 });
 await dbConfig.put({ host: 'db.internal', port: 5432 });
 const cfg = await dbConfig.get();             // { host: string; port: number } | null
@@ -77,9 +92,15 @@ interface SecretOptions<T = string> {
   removalPolicy?: 'destroy' | 'retain';   // default: stack-wide defaults
   generate?: boolean;                     // seed a random value on first create
   cacheTtlSeconds?: number;               // default 300; 0 disables caching
+  allowRuntimeWrite?: boolean;            // default false; new in bb-secret@0.3.0
   logger?: ChildLogger;
 }
 ```
+
+- **`allowRuntimeWrite: true`**: the constructor is overloaded on this flag.
+  `true` returns a `WritableSecret<T>` (has `put(value)`), anything else returns
+  the read-only `Secret<T>`. It also decides the IAM grant. It applies to every
+  secret, including one wrapped with `Secret.fromExisting(arn)`.
 
 - **`name`** — set an explicit, well-known name when a team or CI/CD pipeline must
   target the secret out-of-band (`aws secretsmanager put-secret-value --secret-id
@@ -104,8 +125,8 @@ const legacy = new Secret(scope, 'legacy-key', {
 });
 ```
 
-The block creates, seeds and deletes nothing — it reads and writes the value and
-(in the CDK layer) grants access. This is the sanctioned path for a centrally
+The block creates, seeds and deletes nothing. It reads the value (and writes it
+only with `allowRuntimeWrite: true`) and, in the CDK layer, grants access. This is the sanctioned path for a centrally
 managed secret shared across installations. `name` is ignored, since the
 referenced secret has its own.
 
@@ -126,7 +147,7 @@ await secret.get({ version: versions[1] });     // a SecretVersionInfo passes st
   Never values. Deeper history that Secrets Manager still retains is reachable
   through the AWS SDK against the ARN (`secret.secretArn` on the CDK construct;
   the runtime and mock classes deliberately expose no AWS primitives).
-- **Rotate by setting a new value** — `put()`, the console, or the CLI. The prior
+- **Rotate by setting a new value** with `put()` (needs `allowRuntimeWrite: true`), the console, or the CLI. The prior
   value becomes `'previous'`. Automatic rotation is out of scope (AWS ships
   hosted rotators only for database engines); drive `put()` from a `CronJob` for
   a custom schedule.
@@ -160,7 +181,7 @@ console.
 import { isBlocksError } from '@aws-blocks/core';
 
 try {
-  await secret.put(value);
+  await secret.put(value);   // secret constructed with allowRuntimeWrite: true
 } catch (e: unknown) {
   if (isBlocksError(e, SecretErrors.ValidationFailed)) { /* … */ }
   throw e;
@@ -186,7 +207,8 @@ console/CLI rotation, or another process's `put()`) can go unnoticed.
 
 The CDK layer provisions one `secretsmanager.Secret` (encrypted with the default
 `aws/secretsmanager` key), grants the shared execution role scoped
-`GetSecretValue` + `PutSecretValue`, requests the Secrets Manager interface VPC
+`GetSecretValue` + `ListSecretVersionIds` (plus `PutSecretValue` only with
+`allowRuntimeWrite: true`), requests the Secrets Manager interface VPC
 endpoint, and passes the ARN to the runtime via `registerConfig`
 (`BLOCKS_SECRET_ARN_<ID>`). Runtime methods on the construct are
 `synthGuard`-stubbed.
