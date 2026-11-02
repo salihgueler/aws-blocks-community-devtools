@@ -384,7 +384,7 @@ new Hosting(blocksStack, 'Hosting', {
   root: join(__dirname, '..'),
   buildCommand: 'npm run build',
   api: blocksStack,                 // wires the /aws-blocks/* CloudFront proxy
-  // framework is auto-detected; compute.memorySize defaults to 512 (SSR only)
+  // framework is auto-detected; compute.memorySize defaults to 1024 (SSR only)
 });
 ```
 

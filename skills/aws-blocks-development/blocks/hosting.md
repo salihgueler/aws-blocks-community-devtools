@@ -111,11 +111,12 @@ interface HostingProps {
 }
 ```
 
-`ComputeConfig` (SSR only): `memorySize` (MB, default 512), `timeout`
+`ComputeConfig` (SSR only): `memorySize` (MB, default 1024 unless the framework
+adapter sets its own), `timeout`
 (`cdk.Duration` or a plain number of seconds, default 30 — a number outside 1–900
 throws `compute.timeout must be between 1-900 seconds`),
 `reservedConcurrency`, `imageOptimization.reservedConcurrency`, and
-`logRetention` (default `TWO_WEEKS`).
+`logRetention` (default `ONE_MONTH`).
 
 **`compute.type`** (`hosting@0.5.0`, umbrella `0.9.0`): `'lambda'` (default)
 runs the SSR server as a Lambda function behind API Gateway, in every Region.
