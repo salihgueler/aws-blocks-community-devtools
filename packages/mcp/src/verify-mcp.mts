@@ -54,8 +54,13 @@ if (api?.methods?.length) {
 // plain-text isError result, not JSON.
 if (project.environments.cloud.stackFound && api?.methods?.length) {
   const cloudRpc = await client.callTool({ name: "blocks_rpc", arguments: { method: `${api.id}.${api.methods[0].name}`, params: [], env: "cloud" } });
-  const cloudParsed = JSON.parse(firstText(cloudRpc));
-  console.log("cloud rpc: status", cloudParsed.status, "| ok:", cloudParsed.ok);
+  if ((cloudRpc as { isError?: boolean }).isError) {
+    // A tool-level failure (no ApiUrl output, unreadable stack) is plain text.
+    console.log("cloud rpc: isError |", firstText(cloudRpc).slice(0, 80));
+  } else {
+    const cloudParsed = JSON.parse(firstText(cloudRpc));
+    console.log("cloud rpc: status", cloudParsed.status, "| ok:", cloudParsed.ok);
+  }
 } else {
   console.log("cloud rpc: skipped (no deployed stack)");
 }

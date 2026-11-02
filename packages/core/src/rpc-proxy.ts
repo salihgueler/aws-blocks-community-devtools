@@ -46,12 +46,16 @@ export async function proxyRpc(
     // `<base>/{namespace}`, and the gateway routes that path to the compute
     // hosting the namespace. The bare base only reaches the default compute.
     // Stacks deployed before 0.9.0 have no per-namespace route, so fall back
-    // to the bare endpoint when the gateway does not know the path.
+    // to the bare endpoint when the gateway does not know the path. Only a
+    // response that is not a JSON-RPC envelope counts as "unknown route": a
+    // JSON-RPC reply came from the Blocks runtime, so the method already ran
+    // and calling it again would execute it twice.
     let response = await send(namespaceRequestUrl(endpoint, namespace));
-    if (response.status === 403 || response.status === 404) {
+    let body = await readJson(response);
+    if ((response.status === 403 || response.status === 404) && !isJsonRpcEnvelope(body)) {
       response = await send(endpoint);
+      body = await readJson(response);
     }
-    const body = await response.json().catch(() => null);
     return {
       ok: response.ok,
       status: response.status,
@@ -77,4 +81,12 @@ export function namespaceRequestUrl(baseUrl: string, namespace: string): string 
   let end = baseUrl.length;
   while (end > 0 && baseUrl.charCodeAt(end - 1) === 47) end--;
   return `${baseUrl.slice(0, end)}/${namespace}`;
+}
+
+async function readJson(response: Response): Promise<unknown> {
+  return response.json().catch(() => null);
+}
+
+function isJsonRpcEnvelope(body: unknown): boolean {
+  return typeof body === "object" && body !== null && "jsonrpc" in body;
 }
