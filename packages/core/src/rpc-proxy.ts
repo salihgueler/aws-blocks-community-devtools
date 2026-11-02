@@ -25,8 +25,9 @@ export async function proxyRpc(
     };
   }
   const started = performance.now();
-  try {
-    const response = await fetch(endpoint, {
+  const namespace = request.method.slice(0, request.method.indexOf("."));
+  const send = (url: string): Promise<Response> =>
+    fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -40,7 +41,21 @@ export async function proxyRpc(
       }),
       signal: AbortSignal.timeout(RPC_TIMEOUT_MS),
     });
-    const body = await response.json().catch(() => null);
+  try {
+    // Since @aws-blocks/blocks 0.9.0 the typed client posts to
+    // `<base>/{namespace}`, and the gateway routes that path to the compute
+    // hosting the namespace. The bare base only reaches the default compute.
+    // Stacks deployed before 0.9.0 have no per-namespace route, so fall back
+    // to the bare endpoint when the gateway does not know the path. Only a
+    // response that is not a JSON-RPC envelope counts as "unknown route": a
+    // JSON-RPC reply came from the Blocks runtime, so the method already ran
+    // and calling it again would execute it twice.
+    let response = await send(namespaceRequestUrl(endpoint, namespace));
+    let body = await readJson(response);
+    if ((response.status === 403 || response.status === 404) && !isJsonRpcEnvelope(body)) {
+      response = await send(endpoint);
+      body = await readJson(response);
+    }
     return {
       ok: response.ok,
       status: response.status,
@@ -56,4 +71,22 @@ export async function proxyRpc(
       durationMs: Math.round(performance.now() - started),
     };
   }
+}
+
+/**
+ * Append `/{namespace}` to an RPC base URL, the same way the 0.9.0 typed
+ * client does. Trailing slashes are trimmed with a loop rather than a regex.
+ */
+export function namespaceRequestUrl(baseUrl: string, namespace: string): string {
+  let end = baseUrl.length;
+  while (end > 0 && baseUrl.charCodeAt(end - 1) === 47) end--;
+  return `${baseUrl.slice(0, end)}/${namespace}`;
+}
+
+async function readJson(response: Response): Promise<unknown> {
+  return response.json().catch(() => null);
+}
+
+function isJsonRpcEnvelope(body: unknown): boolean {
+  return typeof body === "object" && body !== null && "jsonrpc" in body;
 }

@@ -1,6 +1,6 @@
 ---
 name: aws-blocks-development
-description: Builds fullstack TypeScript apps on AWS with @aws-blocks/blocks — scaffolding, correct import paths, the JSON-RPC API model, and deployment. Use when working with @aws-blocks/blocks, the create-blocks-app CLI, or any Building Block (KVStore, DistributedTable, Database, DistributedDatabase, FileBucket, Realtime, EmailClient, AsyncJob, CronJob, Agent, KnowledgeBase, AppSetting, AuthBasic, AuthCognito, AuthOIDC, Logger, Metrics, Tracer, Dashboard), and with Scope, ApiNamespace, RawRoute, BlocksStack, Hosting, or Pipeline.
+description: Builds fullstack TypeScript apps on AWS with @aws-blocks/blocks — scaffolding, correct import paths, the JSON-RPC API model, and deployment. Use when working with @aws-blocks/blocks, the create-blocks-app CLI, or any Building Block (KVStore, DistributedTable, Database, DistributedDatabase, FileBucket, Realtime, EmailClient, AsyncJob, CronJob, Compute, Agent, KnowledgeBase, AppSetting, Secret, AuthBasic, AuthCognito, AuthOIDC, Logger, Metrics, Tracer, Dashboard), and with Scope, ApiNamespace, RawRoute, BlocksStack, Hosting, or Pipeline.
 ---
 
 # AWS Blocks Development
@@ -10,11 +10,55 @@ it with no codegen, both defined in one `aws-blocks/` workspace and deployed wit
 CDK. This file is the map — it routes you to the right block file and the
 top-level references; per-block API detail lives in those files, not here.
 
-**Pinned version.** This skill targets published `@aws-blocks/blocks@0.6.0`
-(2026-09-17, npm `latest`). Every API claim here is written against that release.
+**Pinned version.** This skill targets published `@aws-blocks/blocks@0.9.0`
+(2026-11-02, npm `latest`). Every API claim here is written against that release.
 Individual Building Blocks version independently under the umbrella (e.g.
-`bb-agent@0.4.1`, `bb-data@0.3.0`, `core@0.5.0`, `hosting@0.3.1`); when a claim is
-version-sensitive it names the component version inline.
+`bb-agent@0.7.0`, `bb-kv-store@0.4.0`, `bb-realtime@0.5.0`, `bb-data@0.5.0`,
+`bb-secret@0.3.0`, `bb-compute@0.2.0`, `core@0.8.0`, `hosting@0.5.0`); when a
+claim is version-sensitive it names the component version inline.
+
+**Breaking in `0.9.0`** (behavior changes that reach apps already deployed):
+
+- **Per-namespace API paths.** The typed client now POSTs to
+  `/aws-blocks/api/{namespace}`, where `{namespace}` is the export name. The bare
+  `/aws-blocks/api` still works but only reaches the default compute. Deploy the
+  backend before, or together with, a frontend built against 0.9.0. If you pass
+  `ApiNamespaceClientOptions.url`, pass the base URL (ending in `/aws-blocks/api`);
+  the client appends `/{namespace}` itself. See [api-namespace](blocks/api-namespace.md).
+- **`Secret` is read-only at runtime by default.** `put()` exists only with
+  `allowRuntimeWrite: true`. See [secret](blocks/secret.md).
+- **`Database` errors are named 4xx errors** (`PermissionDenied` 403,
+  `CheckViolation` 400, `NotNullViolation` 400, `ForeignKeyViolation` 409) instead
+  of a generic 500 `QueryFailed`. `withRLS` claims can no longer override `sub` or
+  `role`. See [database](blocks/database.md).
+- **`stubIdp()` providers only work in local dev and sandbox deploys.** Restart
+  `npm run sandbox` once after upgrading. See [auth-oidc](blocks/auth-oidc.md).
+- **Mock entries fail closed when deployed.** A backend bundled without the
+  `aws-runtime` condition now throws instead of running in-memory stubs.
+- **Node clients resend a call once** when the connection closes before response
+  headers arrive, so delivery is at-least-once. Make such methods idempotent, or
+  pass `retryStaleConnection: false`.
+- **`EmailClient` validates addresses before calling SES**, and the execution role
+  gets only `ses:SendEmail` and `ses:SendBulkEmail`. See
+  [email-client](blocks/email-client.md).
+- **Synth refuses a renamed or removed stateful block** whose baseline file is
+  still under `aws-blocks/baselines/<stack>/`. Restore the old id, or re-baseline
+  on purpose.
+- **Telemetry:** a project config can no longer turn telemetry back on after a
+  global `blocks-telemetry --disable --global`.
+
+**New in `0.9.0`:** the [`Compute`](blocks/compute.md) Building Block (run an
+`ApiNamespace`, `AsyncJob`, `CronJob` or a whole `Scope` on its own serverless or
+container compute), `apiWaf`, `defaults.permissionsBoundary`, FileBucket KMS and
+Object Lock, Hosting `compute.type: 'web-function'`, and `npm run sandbox:deploy`.
+
+**Breaking in `0.8.0`:** `BlocksStack.handler`, `BlocksBackend.handler` and
+`Scope.handler` are **removed**. Grant to `executionRole` and inject config with
+`registerConfig()` instead — see
+[EXTENDING-EXISTING-RESOURCES.md](EXTENDING-EXISTING-RESOURCES.md). One shared
+API Gateway REST API now fronts the whole stack, so `LambdaCompute.apiGateway`
+and `LambdaCompute.apiUrl` are gone too (read `gateway` / `apiUrl` /
+`publicApiUrl` off the stack).
 
 ## Contents
 
@@ -52,9 +96,13 @@ Templates (run `--help` for the live list — the CLI reads each template's
 `blocksTemplateDescription`, so it is the source of truth): `default`
 (Vite + lit-html, auth + DynamoDB + realtime), `react`, `nextjs` (App Router,
 SSR), `demo` (todo + auth), `auth-cognito`, `amplify` (add to an Amplify Gen 2
-app), `backend` (API-only, no frontend), `bare` (minimal). Adding to an existing
+app), `backend` (bare backend stub, no frontend), `api-only` (headless JSON API:
+public health check + auth-gated `DistributedTable` CRUD), `sql` (PostgreSQL on
+the `Database` block with `.sql` migrations, foreign keys and a transaction),
+`bare` (minimal). `api-only` and `sql` are new in `create-blocks-app@0.2.0`.
+Adding to an existing
 project or Amplify app: run it in the project root (`npx @aws-blocks/create-blocks-app .`).
-See PROJECT-SCAFFOLDING.md for what fresh vs. existing-project mode does.
+See [PROJECT-SCAFFOLDING.md](PROJECT-SCAFFOLDING.md) for what fresh vs. existing-project mode does.
 
 **Which auth?** All three implement one `BlocksAuth` interface, so the frontend
 UI code is identical across them.
@@ -81,25 +129,29 @@ UI code is identical across them.
 
 Read the block file when you work with that block; each is self-contained.
 Core (`api-namespace`, `raw-route`) and the JSON-RPC wire model are in
-CORE-ARCHITECTURE.md.
+[CORE-ARCHITECTURE.md](CORE-ARCHITECTURE.md).
 
-| Category | Blocks (→ `blocks/<name>.md`) |
+| Category | Blocks |
 |---|---|
-| Core / API | `api-namespace`, `raw-route` |
-| Auth | `auth-basic`, `auth-cognito`, `auth-oidc` |
-| Data | `kv-store`, `distributed-table`, `database`, `distributed-database` |
-| Storage | `file-bucket` |
-| Messaging | `realtime`, `email-client` |
-| Compute | `async-job`, `cron-job` |
-| AI | `agent`, `knowledge-base` |
-| Config | `app-setting` |
-| Observability | `logger`, `metrics`, `tracer`, `dashboard` |
-| Hosting / CI-CD | `hosting`, `pipeline` |
+| Core / API | [api-namespace](blocks/api-namespace.md), [raw-route](blocks/raw-route.md) |
+| Auth | [auth-basic](blocks/auth-basic.md), [auth-cognito](blocks/auth-cognito.md), [auth-oidc](blocks/auth-oidc.md) |
+| Data | [kv-store](blocks/kv-store.md), [distributed-table](blocks/distributed-table.md), [database](blocks/database.md), [distributed-database](blocks/distributed-database.md) |
+| Storage | [file-bucket](blocks/file-bucket.md) |
+| Messaging | [realtime](blocks/realtime.md), [email-client](blocks/email-client.md) |
+| Compute | [compute](blocks/compute.md), [async-job](blocks/async-job.md), [cron-job](blocks/cron-job.md) |
+| AI | [agent](blocks/agent.md), [knowledge-base](blocks/knowledge-base.md) |
+| Config | [app-setting](blocks/app-setting.md), [secret](blocks/secret.md) |
+| Observability | [logger](blocks/logger.md), [metrics](blocks/metrics.md), [tracer](blocks/tracer.md), [dashboard](blocks/dashboard.md) |
+| Hosting / CI-CD | [hosting](blocks/hosting.md), [pipeline](blocks/pipeline.md) |
 
-Top-level references: CORE-ARCHITECTURE.md (Scope, ApiNamespace, JSON-RPC, error
-model, CORS, `withAuth` SSR), PROJECT-SCAFFOLDING.md, TESTING-REFERENCE.md,
-EXTENDING-EXISTING-RESOURCES.md (adopting existing AWS resources),
-COMPOSITION-RECIPES.md, NATIVE-CLIENTS.md (Swift/Kotlin/Dart), TROUBLESHOOTING.md.
+Top-level references: [CORE-ARCHITECTURE.md](CORE-ARCHITECTURE.md) (Scope,
+ApiNamespace, JSON-RPC, error model, CORS, `withAuth` SSR),
+[PROJECT-SCAFFOLDING.md](PROJECT-SCAFFOLDING.md),
+[TESTING-REFERENCE.md](TESTING-REFERENCE.md),
+[EXTENDING-EXISTING-RESOURCES.md](EXTENDING-EXISTING-RESOURCES.md) (adopting
+existing AWS resources), [COMPOSITION-RECIPES.md](COMPOSITION-RECIPES.md),
+[NATIVE-CLIENTS.md](NATIVE-CLIENTS.md) (Swift/Kotlin/Dart),
+[TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ## Package entry points (subpath exports)
 
@@ -112,7 +164,8 @@ right one (not everything is on the root). The published subpath exports:
 | `@aws-blocks/blocks/cdk` | CDK-only surface: `BlocksStack`, `Hosting`, `BlocksPresets`, `Pipeline` (also re-exported), CDK helpers. Used from `index.cdk.ts`. |
 | `@aws-blocks/blocks/client` | The generated frontend client factory (`generateClient`) — normally you import from the app's own `aws-blocks` workspace, not this directly. |
 | `@aws-blocks/blocks/server` | SSR helpers: `withAuth`, `registerCookieProvider`, `clearCookieProviders`. |
-| `@aws-blocks/blocks/ui` | Framework-agnostic auth UI: `Authenticator`, `AuthenticatedContent`, `AccountMenuBar`, `onAuthChange`, `broadcastAuthChange`. |
+| `@aws-blocks/blocks/ui` | Framework-agnostic auth UI: `Authenticator`, `AuthenticatedContent`, `AccountMenuBar`, `onAuthChange`, `broadcastAuthChange`, `submitAuthAction` and `StatusMessage` (both re-exported here since `0.9.0`), plus the theme layer (`injectTheme`, `THEME_CSS`, `THEME_STYLE_ID`). |
+| `@aws-blocks/blocks/theme` | Design tokens **only** (`injectTheme`, `THEME_CSS`, `THEME_STYLE_ID`) with no `Authenticator` / WebAuthn surface — for a non-auth host that wants the `--bb-*` custom properties and `.bb-*` classes. New in `0.8.0`. |
 | `@aws-blocks/blocks/utils` | Test/dev helpers only — exactly `installCookieJar` and `isServerRunning`. Auth state is **not** here: `setAuthState` is a method on `auth.createApi()`, not a `/utils` export. |
 | `@aws-blocks/blocks/lambda-handler` | The Lambda entry the generated `index.handler.ts` wires up — you rarely import it by hand. |
 | `@aws-blocks/blocks/scripts` | Programmatic access to the dev-server / client-gen / spec scripts the npm scripts call. |
@@ -178,7 +231,7 @@ const result = await api.greet(); // fully typed, no codegen
 
 Every method is a public endpoint by default — gate the ones that need it with
 `requireAuth`. Full API model (JSON-RPC wire format, error handling, SSR): see
-CORE-ARCHITECTURE.md.
+[CORE-ARCHITECTURE.md](CORE-ARCHITECTURE.md).
 
 ## Verification workflow
 
@@ -230,17 +283,38 @@ done
 # 3. …run typecheck / curl the endpoint / drive e2e…
 
 # 4. Stop it
+npm run dev:stop
 tmux kill-session -t blocks
 ```
 
+**The dev server binds loopback (`127.0.0.1`) as of `core@0.7.0`.** It serves
+your whole API against mock data with **no authentication**, so it must not be
+reachable from other machines. For a container or remote devbox opt in with
+`BLOCKS_DEV_HOST=0.0.0.0` (or `startDevServer({ host })`); a non-loopback host
+prints a warning. Two related local-only changes in the same release: the
+`/realtime` WebSocket upgrade now checks `Origin` (loopback origins, plus the
+opted-in `BLOCKS_DEV_HOST`; a client that sends no `Origin` still connects), and
+a client-sent `publish` is rejected the way the deployed WebSocket already
+rejects it — publish from the server with `Realtime.publish()`.
+
+**Stop it with `npm run dev:stop`, not `pkill -f tsx` / `killall node`** — those
+match by process name and can kill your own shell or agent process. `dev:stop`
+acts only on the supervisor identity recorded in the dev server's own pidfile,
+never on whatever happens to hold the port, and exits non-zero if the port is
+still bound.
+
 For a **sandbox** the deploy takes 2–3 minutes (CDK / CloudFormation) — same
 detached-poll pattern, and **always `npm run sandbox:destroy` (or `npm run destroy`)
-when you're done** so you don't leave AWS resources running.
+when you're done** so you don't leave AWS resources running. For `sandbox` and
+`deploy`, poll for the line starting `BLOCKS_DEPLOYED` (e.g.
+`BLOCKS_DEPLOYED url=https://… api=https://…`): it is printed last, only on
+success, and carries the URLs.
 
 ## Deployment
 
 ```bash
 npm run sandbox          # ephemeral AWS sandbox (backend only — no Hosting)
+npm run sandbox:deploy   # same sandbox, deploys once and exits (scripts, CI, agents)
 npm run sandbox:destroy  # tear the sandbox down
 npm run deploy           # production deploy (backend + Hosting frontend)
 npm run destroy          # tear the production stack down (ships in the template)
@@ -249,22 +323,68 @@ npm run destroy          # tear the production stack down (ships in the template
 Never run `cdk deploy` directly. Sandbox is backend-only by design — the
 scaffolded `index.cdk.ts` constructs `Hosting` only when not in sandbox mode.
 
+`npm run sandbox:deploy` (new in `0.9.0`) runs the sandbox script with
+`--deploy-only`: it deploys once, writes `.blocks-sandbox/config.json`, prints
+the `BLOCKS_DEPLOYED` line and exits. Prefer it over `npm run sandbox` when you
+only need a deployed backend to test against. An app scaffolded before 0.9.0
+can adopt it by adding `deployOnly: process.argv.includes('--deploy-only')` to
+the `startSandbox({ ... })` call in `aws-blocks/scripts/sandbox.ts` and a
+`"sandbox:deploy": "tsx aws-blocks/scripts/sandbox.ts --deploy-only"` script.
+
+`npm run deploy -- --wait-live` (opt-in, `0.8.0`) holds the `BLOCKS_DEPLOYED`
+line until the new frontend build is confirmed served. `cdk deploy` returning is
+not the same thing, so without the flag a self-test issued immediately after the
+signal can hit a stale bundle and miss a regression.
+
+### How the API is exposed (`apiFrontDoor`, `core@0.7.0`)
+
+One shared API Gateway REST API fronts the whole stack. `apiFrontDoor` on
+`BlocksStackProps` / `BlocksBackendProps` chooses what sits in front of it:
+
+- `'apigateway'` (**default**) — clients call the gateway's own `execute-api`
+  endpoint. Nothing extra deployed.
+- `'cloudfront'` — one Blocks-managed CloudFront distribution in front of the
+  gateway, which is then built as a `REGIONAL` endpoint so there is a single
+  CloudFront layer. The distribution URL reaches the runtime as
+  `BLOCKS_PUBLIC_ORIGIN`, so absolute URLs the backend builds (AuthOIDC's
+  sign-in callback, for one) use it.
+
+Read **`publicApiUrl`** for the URL clients should call under either tier;
+`apiUrl` stays the gateway's own URL (what `Hosting` forwards to). A
+`BlocksStack`'s `ApiUrl` output — the `BLOCKS_API_URL` that `deploy` / `sandbox`
+hand the client — is `publicApiUrl`; with `BlocksBackend` you emit it yourself.
+With `Hosting`, the API is served from Hosting's distribution and the managed
+`'cloudfront'` distribution stands down: one distribution, same origin as the
+frontend, no CORS and no second hop.
+
+The default is a constant, never derived from app shape, so adding or removing
+blocks cannot silently move the API. Any other value fails synth.
+
+> ⚠️ **Switching tiers — or adding or removing `Hosting` under `'cloudfront'` —
+> changes the API's endpoint domain, which signs every user out.** Browser auth
+> cookies and sessions are bound to the origin they were set on. Pick a tier and
+> decide on Hosting before you have real users, and treat a later change as a
+> breaking migration.
+
 `aws-blocks/index.cdk.ts` (production frontend via Hosting):
 
 ```typescript
-import { Hosting, BlocksStack } from '@aws-blocks/blocks/cdk';
+import { Hosting, BlocksStack, BlocksPresets } from '@aws-blocks/blocks/cdk';
 import { join } from 'node:path';
 
+const sandboxMode = app.node.tryGetContext('sandboxMode') === 'true';
 const blocksStack = await BlocksStack.create(app, 'my-app', {
   backendHandlerPath: join(__dirname, 'index.handler.ts'),
   backendCDKPath: join(__dirname, 'index.ts'),
+  // Required. Start from a preset; override fields with a spread.
+  defaults: sandboxMode ? BlocksPresets.sandbox : BlocksPresets.production,
 });
 
 new Hosting(blocksStack, 'Hosting', {
   root: join(__dirname, '..'),
   buildCommand: 'npm run build',
   api: blocksStack,                 // wires the /aws-blocks/* CloudFront proxy
-  // framework is auto-detected; compute.memorySize defaults to 512 (SSR only)
+  // framework is auto-detected; compute.memorySize defaults to 1024 (SSR only)
 });
 ```
 
@@ -286,23 +406,48 @@ the full RPC endpoint — `http://localhost:3000/aws-blocks/api`, never `/api`:
 
 SSR cookie forwarding (so a signed-in user's session reaches the API during
 render) is handled by `withAuth` from `@aws-blocks/blocks/server` — see the
-`withAuth (SSR)` section of CORE-ARCHITECTURE.md.
+`withAuth (SSR)` section of [CORE-ARCHITECTURE.md](CORE-ARCHITECTURE.md).
 
 ### Production checklist
 
 Before a real `deploy`, confirm each of these:
 
-- **CORS:** set `CORS_ALLOWED_ORIGINS` explicitly (comma-separated anchored
-  regexes) — never a wildcard. The Hosting construct is same-origin so it needs
-  none; a separate frontend origin does. See CORE-ARCHITECTURE.md § CORS.
-- **Rate limiting / WAF:** API Gateway throttling and AWS WAF are **not** added
-  by the framework — wire them via CDK for any public-facing app.
+- **CORS:** list extra origins in `defaults.allowedOrigins` (anchored regexes;
+  each entry must match the whole origin as of `core@0.6.0`). Never use a wildcard.
+  The Hosting construct is same-origin so it needs none; a separate frontend
+  origin does. See [CORE-ARCHITECTURE.md](CORE-ARCHITECTURE.md) § CORS.
+- **Rate limiting / WAF:** API Gateway stage throttling comes from
+  `defaults.throttling` (production preset 1000 rps / 2000 burst, sandbox
+  200 / 400); raise it with a spread if you expect more. AWS WAF for the API is
+  off by default. Since `core@0.8.0` (umbrella `0.9.0`), set `apiWaf` on
+  `BlocksStack` / `BlocksBackend` for a public-facing app:
+  `{ enabled: true, rateLimit? }` creates a web ACL with the AWS managed Common
+  and Known Bad Inputs rule sets plus a per-IP rate limit (default 1000 requests
+  per 5 minutes), and `{ webAclArn }` attaches one you already have. It attaches
+  to whichever front door clients use. Hosting keeps its own `waf` prop for the
+  CloudFront side.
+- **Access logging:** a durable stack with API Gateway access logging off now
+  gets the synth warning `blocks:apigateway:access-logging-disabled` (the
+  production preset has it off). `cdk deploy --strict` fails on it. Set
+  `accessLogging: true` in `defaults` to turn it on (this also turns on S3 access
+  logging for every FileBucket).
+- **Permissions boundary:** if your organization requires one, set
+  `defaults.permissionsBoundary` (a policy name, ARN or `IManagedPolicy`). It
+  attaches to every IAM role AWS Blocks creates, including Hosting's roles.
 - **Cross-domain auth:** pass `crossDomain: true` to an auth constructor when the
   frontend and API are on different domains (AuthCognito/AuthOIDC set
   `SameSite=None; Secure; Partitioned`; AuthBasic sets `SameSite=None; Secure`).
 - **Monitoring:** Hosting `monitoring` is **on by default** (`{ enabled: true }`) —
-  confirm you haven't disabled it, and set `snsTopicArn` to route CloudFront 5xx /
-  SSR Lambda alarms to your own topic. See `blocks/hosting.md`.
+  confirm you haven't disabled it, and add `monitoring.subscriptions` (e.g. an
+  `EmailSubscription`) so CloudFront 5xx / SSR Lambda alarms reach someone. For a
+  stack outside us-east-1, set `env: { account, region }` or the CloudFront alarm
+  is skipped. `snsTopicArn` was removed in `hosting@0.4.0`. See `blocks/hosting.md`.
+- **Errors:** throw `ApiError` for anything the client should see. A plain
+  `throw new Error('...')` from an API method reaches the client as a generic
+  `500 "Internal error"` (`core@0.6.0`). See CORE-ARCHITECTURE.md.
+- **KVStore cost:** under the `production` preset every `KVStore` now has
+  Point-in-Time Recovery on and uses the `aws/dynamodb` KMS key (`bb-kv-store@0.3.0`),
+  which adds backup storage and KMS request charges.
 - **IAM:** do not hand-write broad `*` IAM policies — each block already grants
   least-privilege scoped to its own resources.
 
@@ -340,11 +485,18 @@ enough.
   e.g. a constant partition key — for hot paths.
 - **Realtime channel budget:** the full channel path
   `{fullId}/{namespace}/{channel}` must be ≤ **1024 UTF-8 bytes** (DynamoDB
-  sort-key limit) and each published message ≤ **32768 bytes**. Keep Scope IDs
+  sort-key limit) and each published message ≤ **131,072 bytes (128 KiB)**,
+  envelope included (`bb-realtime@0.3.0`; earlier versions capped it at 32 KB).
+  Keep Scope IDs
   short so the path fits — there is no separate namespace-length limit.
-- **Secrets live in `AppSetting`, not `.env`.** Store API keys / credentials with
-  `new AppSetting(scope, id, { secret: true })` — never hardcode them or read them
-  from `.env`. See `blocks/app-setting.md`.
+- **Secrets live in `Secret`, not `.env`.** Store any credential protecting a
+  production app — third-party API keys, OAuth client secrets, DB connection
+  strings, signing keys — with `new Secret(scope, id)` (`bb-secret@0.2.0`,
+  Secrets Manager). `new AppSetting(scope, id, { secret: true })` is a free,
+  encrypted fallback for a **low-value** secret only. Never hardcode a value in
+  source and never ship a real secret through a plaintext env var; `.env` for
+  local dev is fine. See [secret](blocks/secret.md) and
+  [app-setting](blocks/app-setting.md).
 - **`Logger` does not redact.** Never pass raw credentials, tokens, or secrets to
   Logger methods — it provides serialization safety, not redaction. Sanitize the
   context object before logging. See `blocks/logger.md`.
@@ -358,9 +510,9 @@ enough.
 
 ## More references
 
-- Project setup & templates → PROJECT-SCAFFOLDING.md
-- Testing patterns → TESTING-REFERENCE.md
-- Brownfield / existing AWS resources → EXTENDING-EXISTING-RESOURCES.md
-- Multi-block recipes → COMPOSITION-RECIPES.md
-- Common errors & fixes → TROUBLESHOOTING.md
-- Native mobile/desktop clients → NATIVE-CLIENTS.md
+- Project setup & templates → [PROJECT-SCAFFOLDING.md](PROJECT-SCAFFOLDING.md)
+- Testing patterns → [TESTING-REFERENCE.md](TESTING-REFERENCE.md)
+- Brownfield / existing AWS resources → [EXTENDING-EXISTING-RESOURCES.md](EXTENDING-EXISTING-RESOURCES.md)
+- Multi-block recipes → [COMPOSITION-RECIPES.md](COMPOSITION-RECIPES.md)
+- Common errors & fixes → [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- Native mobile/desktop clients → [NATIVE-CLIENTS.md](NATIVE-CLIENTS.md)
