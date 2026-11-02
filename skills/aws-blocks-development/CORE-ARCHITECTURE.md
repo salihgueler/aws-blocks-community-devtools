@@ -110,7 +110,7 @@ call.
 error whose `name` is `PayloadTooLarge` and whose code is the real HTTP status
 `413` (so `e.status === 413` and `isBlocksError(e, 'PayloadTooLarge')` both work).
 This guard shipped in the core RPC parser in the **0.4.0** release
-(PR #390, `5bfae0a`) and is still present at the current **0.7.0** pin; it was
+(PR #390, `5bfae0a`) and is still present at the current **0.8.0** pin; it was
 **not** in `0.3.1`. In production API Gateway also
 rejects oversized bodies at the edge; the same limit is enforced in the parser so
 the dev/mock server behaves identically.

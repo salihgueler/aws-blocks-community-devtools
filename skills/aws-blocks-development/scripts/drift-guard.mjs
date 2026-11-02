@@ -163,8 +163,12 @@ function scanDeclarations(text, into) {
     /\b(?:export\s+)?(?:declare\s+)?(?:abstract\s+)?(?:class|interface|type|function|const|let|var|enum|namespace)\s+([A-Za-z_$][\w$]*)/g;
   let m;
   while ((m = re.exec(text)) !== null) into.add(m[1]);
-  // `export { A, B as C }` re-exports
-  const re2 = /export\s*\{([^}]*)\}/g;
+  // `export { A, B as C }` and `export type { A, B }` re-exports. The optional
+  // `type` keyword MUST be allowed: a d.ts republishes another package's types
+  // as `export type { SecretOptions, ... } from '@aws-blocks/bb-secret'`, and
+  // matching only the value form made every type-only re-export read as a miss,
+  // failing a correct skill (hit on the four Secret option types at 0.8.0).
+  const re2 = /export\s*(?:type\s*)?\{([^}]*)\}/g;
   while ((m = re2.exec(text)) !== null) {
     m[1]
       .split(',')

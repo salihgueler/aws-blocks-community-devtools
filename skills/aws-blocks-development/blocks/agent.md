@@ -107,7 +107,7 @@ stopSequences? }`.
   will fail on the non-empty bucket). Pass `'destroy'` for sandbox/ephemeral
   stacks; it pairs the bucket with `autoDeleteObjects`.
 - `structuredOutput` has been **removed** from `AgentConfig` (#479, `2cb9d74`);
-  it does not exist at the `0.7.0` pin. It was present but inert in `0.4.0` (no
+  it does not exist at the `0.8.0` pin. It was present but inert in `0.4.0` (no
   code path ever consumed it). Do not reference it — shape model output with tools
   or by parsing the streamed text instead.
 - **Per-turn cost caps (`maxLlmCalls`, `maxToolIterations`)** are shipped
@@ -333,6 +333,15 @@ interface Message {          // returned by getConversation
   contentType: 'text' | 'image' | 'audio' | 'video' | 'document';
   createdAt: number;
   metadata: MessageMetadata; // JSON-parsed
+}
+
+interface MessageMetadata {
+  toolName?: string;
+  toolInput?: JSONValue;     // was `string` before bb-agent@0.6.0
+  toolOutput?: JSONValue;    // was `string` before bb-agent@0.6.0
+  usage?: TokenUsage;
+  latencyMs?: number;
+  error?: string;
 }
 
 interface Conversation {     // returned by listConversations

@@ -1,6 +1,6 @@
 ---
 name: aws-blocks-development
-description: Builds fullstack TypeScript apps on AWS with @aws-blocks/blocks — scaffolding, correct import paths, the JSON-RPC API model, and deployment. Use when working with @aws-blocks/blocks, the create-blocks-app CLI, or any Building Block (KVStore, DistributedTable, Database, DistributedDatabase, FileBucket, Realtime, EmailClient, AsyncJob, CronJob, Agent, KnowledgeBase, AppSetting, AuthBasic, AuthCognito, AuthOIDC, Logger, Metrics, Tracer, Dashboard), and with Scope, ApiNamespace, RawRoute, BlocksStack, Hosting, or Pipeline.
+description: Builds fullstack TypeScript apps on AWS with @aws-blocks/blocks — scaffolding, correct import paths, the JSON-RPC API model, and deployment. Use when working with @aws-blocks/blocks, the create-blocks-app CLI, or any Building Block (KVStore, DistributedTable, Database, DistributedDatabase, FileBucket, Realtime, EmailClient, AsyncJob, CronJob, Agent, KnowledgeBase, AppSetting, Secret, AuthBasic, AuthCognito, AuthOIDC, Logger, Metrics, Tracer, Dashboard), and with Scope, ApiNamespace, RawRoute, BlocksStack, Hosting, or Pipeline.
 ---
 
 # AWS Blocks Development
@@ -10,12 +10,20 @@ it with no codegen, both defined in one `aws-blocks/` workspace and deployed wit
 CDK. This file is the map — it routes you to the right block file and the
 top-level references; per-block API detail lives in those files, not here.
 
-**Pinned version.** This skill targets published `@aws-blocks/blocks@0.7.0`
-(2026-10-05, npm `latest`). Every API claim here is written against that release.
+**Pinned version.** This skill targets published `@aws-blocks/blocks@0.8.0`
+(2026-10-16, npm `latest`). Every API claim here is written against that release.
 Individual Building Blocks version independently under the umbrella (e.g.
-`bb-agent@0.5.0`, `bb-kv-store@0.3.0`, `bb-realtime@0.3.0`, `core@0.6.0`,
-`hosting@0.4.0`); when a claim is version-sensitive it names the component
-version inline.
+`bb-agent@0.6.0`, `bb-kv-store@0.3.1`, `bb-realtime@0.4.0`, `bb-data@0.4.0`,
+`bb-secret@0.2.0`, `core@0.7.0`, `hosting@0.4.1`); when a claim is
+version-sensitive it names the component version inline.
+
+**Breaking in `0.8.0`:** `BlocksStack.handler`, `BlocksBackend.handler` and
+`Scope.handler` are **removed**. Grant to `executionRole` and inject config with
+`registerConfig()` instead — see
+[EXTENDING-EXISTING-RESOURCES.md](EXTENDING-EXISTING-RESOURCES.md). One shared
+API Gateway REST API now fronts the whole stack, so `LambdaCompute.apiGateway`
+and `LambdaCompute.apiUrl` are gone too (read `gateway` / `apiUrl` /
+`publicApiUrl` off the stack).
 
 ## Contents
 
@@ -97,7 +105,7 @@ Core (`api-namespace`, `raw-route`) and the JSON-RPC wire model are in
 | Messaging | [realtime](blocks/realtime.md), [email-client](blocks/email-client.md) |
 | Compute | [async-job](blocks/async-job.md), [cron-job](blocks/cron-job.md) |
 | AI | [agent](blocks/agent.md), [knowledge-base](blocks/knowledge-base.md) |
-| Config | [app-setting](blocks/app-setting.md) |
+| Config | [app-setting](blocks/app-setting.md), [secret](blocks/secret.md) |
 | Observability | [logger](blocks/logger.md), [metrics](blocks/metrics.md), [tracer](blocks/tracer.md), [dashboard](blocks/dashboard.md) |
 | Hosting / CI-CD | [hosting](blocks/hosting.md), [pipeline](blocks/pipeline.md) |
 
@@ -121,7 +129,8 @@ right one (not everything is on the root). The published subpath exports:
 | `@aws-blocks/blocks/cdk` | CDK-only surface: `BlocksStack`, `Hosting`, `BlocksPresets`, `Pipeline` (also re-exported), CDK helpers. Used from `index.cdk.ts`. |
 | `@aws-blocks/blocks/client` | The generated frontend client factory (`generateClient`) — normally you import from the app's own `aws-blocks` workspace, not this directly. |
 | `@aws-blocks/blocks/server` | SSR helpers: `withAuth`, `registerCookieProvider`, `clearCookieProviders`. |
-| `@aws-blocks/blocks/ui` | Framework-agnostic auth UI: `Authenticator`, `AuthenticatedContent`, `AccountMenuBar`, `onAuthChange`, `broadcastAuthChange`. |
+| `@aws-blocks/blocks/ui` | Framework-agnostic auth UI: `Authenticator`, `AuthenticatedContent`, `AccountMenuBar`, `onAuthChange`, `broadcastAuthChange`, plus the theme layer (`injectTheme`, `THEME_CSS`, `THEME_STYLE_ID`). |
+| `@aws-blocks/blocks/theme` | Design tokens **only** (`injectTheme`, `THEME_CSS`, `THEME_STYLE_ID`) with no `Authenticator` / WebAuthn surface — for a non-auth host that wants the `--bb-*` custom properties and `.bb-*` classes. New in `0.8.0`. |
 | `@aws-blocks/blocks/utils` | Test/dev helpers only — exactly `installCookieJar` and `isServerRunning`. Auth state is **not** here: `setAuthState` is a method on `auth.createApi()`, not a `/utils` export. |
 | `@aws-blocks/blocks/lambda-handler` | The Lambda entry the generated `index.handler.ts` wires up — you rarely import it by hand. |
 | `@aws-blocks/blocks/scripts` | Programmatic access to the dev-server / client-gen / spec scripts the npm scripts call. |
@@ -239,8 +248,25 @@ done
 # 3. …run typecheck / curl the endpoint / drive e2e…
 
 # 4. Stop it
+npm run dev:stop
 tmux kill-session -t blocks
 ```
+
+**The dev server binds loopback (`127.0.0.1`) as of `core@0.7.0`.** It serves
+your whole API against mock data with **no authentication**, so it must not be
+reachable from other machines. For a container or remote devbox opt in with
+`BLOCKS_DEV_HOST=0.0.0.0` (or `startDevServer({ host })`); a non-loopback host
+prints a warning. Two related local-only changes in the same release: the
+`/realtime` WebSocket upgrade now checks `Origin` (loopback origins, plus the
+opted-in `BLOCKS_DEV_HOST`; a client that sends no `Origin` still connects), and
+a client-sent `publish` is rejected the way the deployed WebSocket already
+rejects it — publish from the server with `Realtime.publish()`.
+
+**Stop it with `npm run dev:stop`, not `pkill -f tsx` / `killall node`** — those
+match by process name and can kill your own shell or agent process. `dev:stop`
+acts only on the supervisor identity recorded in the dev server's own pidfile,
+never on whatever happens to hold the port, and exits non-zero if the port is
+still bound.
 
 For a **sandbox** the deploy takes 2–3 minutes (CDK / CloudFormation) — same
 detached-poll pattern, and **always `npm run sandbox:destroy` (or `npm run destroy`)
@@ -260,6 +286,41 @@ npm run destroy          # tear the production stack down (ships in the template
 
 Never run `cdk deploy` directly. Sandbox is backend-only by design — the
 scaffolded `index.cdk.ts` constructs `Hosting` only when not in sandbox mode.
+
+`npm run deploy -- --wait-live` (opt-in, `0.8.0`) holds the `BLOCKS_DEPLOYED`
+line until the new frontend build is confirmed served. `cdk deploy` returning is
+not the same thing, so without the flag a self-test issued immediately after the
+signal can hit a stale bundle and miss a regression.
+
+### How the API is exposed (`apiFrontDoor`, `core@0.7.0`)
+
+One shared API Gateway REST API fronts the whole stack. `apiFrontDoor` on
+`BlocksStackProps` / `BlocksBackendProps` chooses what sits in front of it:
+
+- `'apigateway'` (**default**) — clients call the gateway's own `execute-api`
+  endpoint. Nothing extra deployed.
+- `'cloudfront'` — one Blocks-managed CloudFront distribution in front of the
+  gateway, which is then built as a `REGIONAL` endpoint so there is a single
+  CloudFront layer. The distribution URL reaches the runtime as
+  `BLOCKS_PUBLIC_ORIGIN`, so absolute URLs the backend builds (AuthOIDC's
+  sign-in callback, for one) use it.
+
+Read **`publicApiUrl`** for the URL clients should call under either tier;
+`apiUrl` stays the gateway's own URL (what `Hosting` forwards to). A
+`BlocksStack`'s `ApiUrl` output — the `BLOCKS_API_URL` that `deploy` / `sandbox`
+hand the client — is `publicApiUrl`; with `BlocksBackend` you emit it yourself.
+With `Hosting`, the API is served from Hosting's distribution and the managed
+`'cloudfront'` distribution stands down: one distribution, same origin as the
+frontend, no CORS and no second hop.
+
+The default is a constant, never derived from app shape, so adding or removing
+blocks cannot silently move the API. Any other value fails synth.
+
+> ⚠️ **Switching tiers — or adding or removing `Hosting` under `'cloudfront'` —
+> changes the API's endpoint domain, which signs every user out.** Browser auth
+> cookies and sessions are bound to the origin they were set on. Pick a tier and
+> decide on Hosting before you have real users, and treat a later change as a
+> breaking migration.
 
 `aws-blocks/index.cdk.ts` (production frontend via Hosting):
 
@@ -371,9 +432,14 @@ enough.
   envelope included (`bb-realtime@0.3.0`; earlier versions capped it at 32 KB).
   Keep Scope IDs
   short so the path fits — there is no separate namespace-length limit.
-- **Secrets live in `AppSetting`, not `.env`.** Store API keys / credentials with
-  `new AppSetting(scope, id, { secret: true })` — never hardcode them or read them
-  from `.env`. See `blocks/app-setting.md`.
+- **Secrets live in `Secret`, not `.env`.** Store any credential protecting a
+  production app — third-party API keys, OAuth client secrets, DB connection
+  strings, signing keys — with `new Secret(scope, id)` (`bb-secret@0.2.0`,
+  Secrets Manager). `new AppSetting(scope, id, { secret: true })` is a free,
+  encrypted fallback for a **low-value** secret only. Never hardcode a value in
+  source and never ship a real secret through a plaintext env var; `.env` for
+  local dev is fine. See [secret](blocks/secret.md) and
+  [app-setting](blocks/app-setting.md).
 - **`Logger` does not redact.** Never pass raw credentials, tokens, or secrets to
   Logger methods — it provides serialization safety, not redaction. Sanitize the
   context object before logging. See `blocks/logger.md`.
