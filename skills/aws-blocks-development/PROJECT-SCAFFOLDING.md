@@ -262,10 +262,20 @@ every scaffoldable template — you do not write one by hand. Every template has
 
 What `create-blocks-app@0.4.0` changed in every scaffolded app:
 
-- `dev:stop` and `sandbox:deploy` in every template except `amplify` (which
-  gets `stop.ts` only). `sandbox:preview` only in templates with a frontend:
-  `default`, `bare`, `react`, `nextjs`, `demo`, `auth-cognito`. `api-only`,
-  `backend` and `sql` have no frontend to host.
+- In **fresh** mode, `dev:stop` and `sandbox:deploy` in every template except
+  `amplify` (which gets `stop.ts` only). `sandbox:preview` only in templates
+  with a frontend: `default`, `bare`, `react`, `nextjs`, `demo`,
+  `auth-cognito`. `api-only`, `backend` and `sql` have no frontend to host.
+- In **existing-project** mode (`npx @aws-blocks/create-blocks-app .`), the CLI
+  merges a fixed script list into your `package.json`: `sandbox`,
+  `sandbox:destroy`, `sandbox:console`, `deploy`, `destroy`, `dev:server` and
+  `dev:stop`. It does **not** add `sandbox:deploy` or `sandbox:preview`, even
+  though the copied `aws-blocks/scripts/sandbox.ts` handles both flags. Run
+  `npx tsx aws-blocks/scripts/sandbox.ts --deploy-only` (or `--preview`), or add
+  the scripts yourself. It also adds no `aws-cdk` CLI dev dependency, so
+  `npx cdk` falls back to a global CLI. If that CLI is older than the
+  `aws-cdk-lib` the app installs, synth fails with `Cloud assembly schema
+  version mismatch`; add `aws-cdk` as a dev dependency to fix it.
 - The frontend templates' `index.cdk.ts` add `Hosting` for a preview sandbox
   (`if (!sandboxMode || previewMode)`) and spread `HostingPresets.preview` or
   `HostingPresets.production`.
