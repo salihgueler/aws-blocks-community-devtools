@@ -131,8 +131,10 @@ The earlier warning that the scaffolder "overwrites `package.json`,
 an empty dir, and existing-project mode merges `package.json`/`.gitignore` and
 touches neither `tsconfig.json` nor `vite.config.ts`.
 
-Scripts added in existing-project mode: `sandbox`, `sandbox:destroy`,
-`sandbox:console`, `deploy`, `destroy`, `dev:server`.
+Scripts added in existing-project mode (`create-blocks-app@0.4.0`): `sandbox`,
+`sandbox:destroy`, `sandbox:console`, `deploy`, `destroy`, `dev:server`,
+`dev:stop`. Not `sandbox:deploy` or `sandbox:preview`; see "npm scripts by
+template" below.
 
 ## Amplify Gen 2 integration
 
