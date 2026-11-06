@@ -417,6 +417,9 @@ token at build time and is filled in during deploy.
 - Frontend served locally, proxied to the deployed backend
   (`BLOCKS_API_URL` set by `sandbox.ts`, so the dev server proxies to it).
 - Config auto-discovered from `/.blocks-sandbox/config.json`.
+- `npm run sandbox:preview` is the hosted variant: same sandbox stack plus
+  Hosting in `HostingPresets.preview` shape, deployed once, no local dev server
+  (see `blocks/hosting.md`).
 
 ---
 
