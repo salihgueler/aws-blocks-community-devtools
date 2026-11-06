@@ -10,9 +10,10 @@ backend, with an optional custom domain, WAF, and per-request CSP.
 
 **Don't use it for** an API-only backend (omit Hosting entirely — the backend
 deploys without it), for serving user-uploaded files (that is FileBucket), or in
-sandbox mode. The scaffolded `index.cdk.ts` only constructs Hosting when
-`!sandboxMode`, so `npm run sandbox` is backend-only and Hosting is a
-production-deploy concern.
+a plain sandbox. The scaffolded `index.cdk.ts` constructs Hosting when
+`!sandboxMode || previewMode`, so `npm run sandbox` is backend-only. The
+exception is `npm run sandbox:preview`, which deploys Hosting in
+`HostingPresets.preview` shape (see "Preview shape" below).
 
 ## Which `Hosting` this is
 

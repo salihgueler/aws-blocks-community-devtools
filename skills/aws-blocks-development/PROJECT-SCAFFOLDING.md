@@ -158,17 +158,23 @@ The scripts it adds are:
 ## Deploy posture and stack identity
 
 Deploy posture is set in `aws-blocks/index.cdk.ts`, not a config file. The
-scaffolded entry reads a `sandboxMode` CDK context flag and picks a preset:
+scaffolded entry reads the `sandboxMode` and `previewMode` CDK context flags and
+picks presets (frontend templates, `create-blocks-app@0.4.0`):
 
 ```typescript
+const sandboxMode = app.node.tryGetContext('sandboxMode') === 'true';
+// `npm run sandbox:preview` also sets previewMode: a sandbox with hosting in preview shape.
+const previewMode = app.node.tryGetContext('previewMode') === 'true';
+
 export const blocksStack = await BlocksStack.create(app, stackName, {
   backendHandlerPath: join(__dirname, 'index.handler.ts'),
   backendCDKPath: join(__dirname, 'index.ts'),
   defaults: sandboxMode ? BlocksPresets.sandbox : BlocksPresets.production,
 });
 
-if (!sandboxMode) {
+if (!sandboxMode || previewMode) {
   new Hosting(blocksStack, 'Hosting', {
+    ...(previewMode ? HostingPresets.preview : HostingPresets.production),
     root: join(__dirname, '..'),
     buildCommand: 'npm run build',
     buildOutputDir: 'dist',
@@ -178,8 +184,9 @@ if (!sandboxMode) {
 ```
 
 `BlocksPresets.sandbox` vs `BlocksPresets.production` carry the removal-policy /
-deletion-protection posture — that is the real "deploy config", and Hosting is
-only constructed on a production deploy.
+deletion-protection posture — that is the real "deploy config". Hosting is
+constructed on a production deploy and on a preview sandbox
+(`npm run sandbox:preview`), never on a plain `npm run sandbox`.
 
 Stack identity comes from `.blocks/config.json`'s `stackId`. The stack name is
 derived from it via `getStackName` / `getStackId` (from `@aws-blocks/blocks/scripts`):
