@@ -99,7 +99,8 @@ SSR), `demo` (todo + auth), `auth-cognito`, `amplify` (add to an Amplify Gen 2
 app), `backend` (bare backend stub, no frontend), `api-only` (headless JSON API:
 public health check + auth-gated `DistributedTable` CRUD), `sql` (PostgreSQL on
 the `Database` block with `.sql` migrations, foreign keys and a transaction),
-`bare` (minimal). `api-only` and `sql` are new in `create-blocks-app@0.2.0`.
+`bare` (minimal). The template set is unchanged in `create-blocks-app@0.4.0`
+(the release paired with `0.9.0`).
 Adding to an existing
 project or Amplify app: run it in the project root (`npx @aws-blocks/create-blocks-app .`).
 See [PROJECT-SCAFFOLDING.md](PROJECT-SCAFFOLDING.md) for what fresh vs. existing-project mode does.
@@ -315,13 +316,24 @@ success, and carries the URLs.
 ```bash
 npm run sandbox          # ephemeral AWS sandbox (backend only — no Hosting)
 npm run sandbox:deploy   # same sandbox, deploys once and exits (scripts, CI, agents)
+npm run sandbox:preview  # sandbox backend + hosted frontend in preview shape, prints its URL
 npm run sandbox:destroy  # tear the sandbox down
 npm run deploy           # production deploy (backend + Hosting frontend)
 npm run destroy          # tear the production stack down (ships in the template)
 ```
 
-Never run `cdk deploy` directly. Sandbox is backend-only by design — the
-scaffolded `index.cdk.ts` constructs `Hosting` only when not in sandbox mode.
+Never run `cdk deploy` directly. A plain sandbox is backend-only by design: the
+scaffolded `index.cdk.ts` constructs `Hosting` only when not in sandbox mode, or
+when `npm run sandbox:preview` sets the `previewMode` context.
+
+`npm run sandbox:preview` (`create-blocks-app@0.4.0`, templates with a frontend)
+deploys once with `Hosting` in `HostingPresets.preview` shape: API Gateway door,
+no CloudFront, no image optimization, a fixed build id. A re-deploy hotswaps
+backend code in seconds. All three sandbox scripts share one stack, so a plain
+`sandbox` deploy removes the preview hosting. Use it when you need a live URL
+for the frontend without a production deploy. See
+[blocks/hosting.md](blocks/hosting.md) for details and for the other front
+doors (`frontDoor`: ALB, API Gateway, stacked, none, custom).
 
 `npm run sandbox:deploy` (new in `0.9.0`) runs the sandbox script with
 `--deploy-only`: it deploys once, writes `.blocks-sandbox/config.json`, prints
