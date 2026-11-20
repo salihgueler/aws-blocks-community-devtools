@@ -11,7 +11,7 @@ import type {
 } from "./types.js";
 
 /**
- * Static discovery of Building Blocks in a target AWS Blocks project.
+ * Static discovery of Building Blocks in a target AWS CDK Blocks project.
  *
  * Why AST and not runtime: Scope.getRegisteredBlocks() in @aws-blocks/core is
  * telemetry-filtered — it exposes block type names and counts but not ids or
@@ -53,7 +53,7 @@ const CONFIG_PREVIEW_MAX = 800;
 export function discoverBlocks(projectPath: string): ProjectInventory {
   const backendDir = join(projectPath, "aws-blocks");
   if (!existsSync(backendDir)) {
-    throw new Error(`Not an AWS Blocks project: ${backendDir} does not exist`);
+    throw new Error(`Not an AWS CDK Blocks project: ${backendDir} does not exist`);
   }
 
   const project = new Project({
