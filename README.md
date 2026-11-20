@@ -1,6 +1,6 @@
-# AWS Blocks community devtools
+# AWS CDK Blocks community devtools
 
-Community developer tools for [AWS Blocks](https://www.npmjs.com/package/@aws-blocks/blocks) projects: two npm packages that read your project, and the agent skill for building on it.
+Community developer tools for [AWS CDK Blocks](https://www.npmjs.com/package/@aws-blocks/blocks) projects: two npm packages that read your project, and the agent skill for building on it.
 
 | Tool | What it is |
 | --- | --- |
@@ -8,7 +8,7 @@ Community developer tools for [AWS Blocks](https://www.npmjs.com/package/@aws-bl
 | [`aws-blocks-mcp`](https://www.npmjs.com/package/aws-blocks-mcp) ([source](packages/mcp)) | An MCP server, so an AI agent can do the same things over stdio. Read-only unless you opt in. |
 | [`aws-blocks-development`](skills/aws-blocks-development) | An agent skill covering every Building Block, the API model, scaffolding and deployment. Not published to npm — copy it into your project's skills directory. |
 
-The two packages need no configuration. Run either inside an AWS Blocks project and it finds the project, its scope, its blocks, and its deployed stack on its own.
+The two packages need no configuration. Run either inside an AWS CDK Blocks project and it finds the project, its scope, its blocks, and its deployed stack on its own.
 
 ```bash
 # Browse a project in your browser
@@ -42,7 +42,7 @@ Without `--node-modules` (or `BLOCKS_NODE_MODULES`) it degrades gracefully and e
 
 They are genuinely different products with different audiences: one renders pixels for a human, the other speaks a protocol to an agent. Keeping them separate means an agent installing the MCP server does not also download a React UI it will never render.
 
-They are not, however, two implementations. Everything that actually understands an AWS Blocks project — block discovery, environment detection, data reading, secret redaction, the JSON-RPC seam — lives in one private `core` workspace that both packages compile into their own bundle at build time. That is why `packages/core` exists and is not published: one source of truth, two shipped artifacts, and no third thing for you to install.
+They are not, however, two implementations. Everything that actually understands an AWS CDK Blocks project — block discovery, environment detection, data reading, secret redaction, the JSON-RPC seam — lives in one private `core` workspace that both packages compile into their own bundle at build time. That is why `packages/core` exists and is not published: one source of truth, two shipped artifacts, and no third thing for you to install.
 
 ```
 packages/

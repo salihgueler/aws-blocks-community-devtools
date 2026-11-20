@@ -44,7 +44,7 @@ function requireProject(explicit?: string): string {
     );
   }
   throw new Error(
-    "No AWS Blocks project found from the current directory. Run the agent from a project containing aws-blocks/index.ts, or pass project=<absolute path>.",
+    "No AWS CDK Blocks project found from the current directory. Run the agent from a project containing aws-blocks/index.ts, or pass project=<absolute path>.",
   );
 }
 
@@ -59,9 +59,9 @@ export function createMcpServer(): McpServer {
   server.registerTool(
     "blocks_project",
     {
-      title: "Describe the AWS Blocks project",
+      title: "Describe the AWS CDK Blocks project",
       description:
-        "Orient in an AWS Blocks project: which project is in scope, every Building Block it declares (type, id, category, source location, key schema, API methods), and whether the local dev server and a deployed stack are reachable. Call this first — other tools take ids from it.",
+        "Orient in an AWS CDK Blocks project: which project is in scope, every Building Block it declares (type, id, category, source location, key schema, API methods), and whether the local dev server and a deployed stack are reachable. Call this first — other tools take ids from it.",
       inputSchema: {
         project: z
           .string()

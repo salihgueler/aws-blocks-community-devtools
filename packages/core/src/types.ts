@@ -1,7 +1,7 @@
 /**
  * Shared domain model between the console backend (server/) and UI (src/).
  * A "block" is one Building Block instantiation discovered in the target
- * AWS Blocks project (e.g. `new DistributedTable(scope, "pages", {...})`).
+ * AWS CDK Blocks project (e.g. `new DistributedTable(scope, "pages", {...})`).
  */
 
 export type BlockCategory =

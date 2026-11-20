@@ -1,6 +1,6 @@
 # aws-blocks-mcp
 
-An [MCP](https://modelcontextprotocol.io) server for [AWS Blocks](https://www.npmjs.com/package/@aws-blocks/blocks) projects. It lets an AI agent understand the project it is sitting in — which blocks exist, what data they hold locally and in AWS, and what your API returns.
+An [MCP](https://modelcontextprotocol.io) server for [AWS CDK Blocks](https://www.npmjs.com/package/@aws-blocks/blocks) projects. It lets an AI agent understand the project it is sitting in — which blocks exist, what data they hold locally and in AWS, and what your API returns.
 
 ## Setup
 
@@ -24,7 +24,7 @@ Or add it by hand:
 }
 ```
 
-No project path is baked in. The server resolves the project from the agent's working directory, so one registration covers every AWS Blocks project you work on. MCP servers spawn when your agent starts, so restart the agent after registering.
+No project path is baked in. The server resolves the project from the agent's working directory, so one registration covers every AWS CDK Blocks project you work on. MCP servers spawn when your agent starts, so restart the agent after registering.
 
 ## Tools
 

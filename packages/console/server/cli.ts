@@ -171,16 +171,16 @@ async function doctor(
 
 function reportUnresolved(resolution: Extract<ProjectResolution, { ok: false }>): void {
   if (resolution.reason === "ambiguous") {
-    console.error("Several AWS Blocks projects found here. Pick one with --project:");
+    console.error("Several AWS CDK Blocks projects found here. Pick one with --project:");
     for (const candidate of resolution.candidates) console.error(`  ${candidate}`);
     return;
   }
   if (resolution.reason === "bad-override") {
-    console.error("BLOCKS_CONSOLE_PROJECT does not point at an AWS Blocks project.");
+    console.error("BLOCKS_CONSOLE_PROJECT does not point at an AWS CDK Blocks project.");
     return;
   }
   console.error(
-    "No AWS Blocks project found here (looked for aws-blocks/index.ts in this directory and its parents).",
+    "No AWS CDK Blocks project found here (looked for aws-blocks/index.ts in this directory and its parents).",
   );
   console.error("Run this from inside a Blocks project, or pass --project <path>.");
 }
@@ -213,7 +213,7 @@ function openBrowser(url: string): void {
 }
 
 function printHelp(): void {
-  console.log(`aws-blocks-console — inspect and interact with an AWS Blocks project
+  console.log(`aws-blocks-console — inspect and interact with an AWS CDK Blocks project
 
 Usage
   aws-blocks-console [serve] [options]   Serve the console UI (default)

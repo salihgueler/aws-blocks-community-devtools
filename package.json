@@ -2,7 +2,7 @@
   "name": "aws-blocks-community-devtools",
   "private": true,
   "type": "module",
-  "description": "Community developer tools for AWS Blocks projects: a local-first admin console and an MCP server.",
+  "description": "Community developer tools for AWS CDK Blocks projects: a local-first admin console and an MCP server.",
   "engines": {
     "node": ">=22.0.0"
   },

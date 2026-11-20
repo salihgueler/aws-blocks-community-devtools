@@ -86,7 +86,7 @@ export function App() {
       <header className="topbar">
         <span className="brand">
           <LogoMark />
-          <h1>AWS Blocks Console</h1>
+          <h1>AWS CDK Blocks Console</h1>
         </span>
         <span className="project">
           {inventory.data ? inventory.data.projectName : "loading…"}

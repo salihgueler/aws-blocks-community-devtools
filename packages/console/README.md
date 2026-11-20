@@ -1,12 +1,12 @@
 # aws-blocks-console
 
-A local-first admin console for [AWS Blocks](https://www.npmjs.com/package/@aws-blocks/blocks) projects. Think Prisma Studio, but for Building Blocks.
+A local-first admin console for [AWS CDK Blocks](https://www.npmjs.com/package/@aws-blocks/blocks) projects. Think Prisma Studio, but for Building Blocks.
 
 ```bash
 npx aws-blocks-console
 ```
 
-Run it inside an AWS Blocks project. It walks up from the current directory to find `aws-blocks/index.ts`, discovers your blocks, picks a free port, and opens a browser. No flags, no config file, no project path.
+Run it inside an AWS CDK Blocks project. It walks up from the current directory to find `aws-blocks/index.ts`, discovers your blocks, picks a free port, and opens a browser. No flags, no config file, no project path.
 
 ## What you get
 

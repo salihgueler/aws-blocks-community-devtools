@@ -4,7 +4,7 @@ Status: Accepted
 
 ## Context
 
-The console and MCP server let you browse data in a deployed AWS Blocks stack:
+The console and MCP server let you browse data in a deployed AWS CDK Blocks stack:
 scan DynamoDB tables, list Cognito users. Reading someone's production data is
 already sensitive; accidentally *writing* to it would be far worse. The design
 goal is that cloud reads can never mutate the account.
