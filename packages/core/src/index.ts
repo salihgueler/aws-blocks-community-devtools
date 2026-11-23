@@ -17,8 +17,19 @@ export { discoverBlocks } from "./discovery.js";
 export { resolveProject, isBlocksProject } from "./project.js";
 export type { ResolvedProject, ProjectResolution } from "./project.js";
 export {
+  BACKEND_DIRS,
+  backendDirName,
+  isCdkBlocksLayout,
+  localDataDirName,
+  configDirName,
+  sandboxDirName,
+  apiPath,
+} from "./layout.js";
+export type { BackendDir } from "./layout.js";
+export {
   resolveLocalPort,
   localBlocksUrl,
+  localRpcUrl,
   stackNameCandidates,
   detectLocal,
   detectCloud,

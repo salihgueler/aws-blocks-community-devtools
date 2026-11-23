@@ -11,7 +11,7 @@ import {
   resolveBlockResources,
   type CloudClientOptions,
 } from "@aws-blocks-devtools/core";
-import { detectLocal } from "@aws-blocks-devtools/core";
+import { detectLocal, localDataDirName } from "@aws-blocks-devtools/core";
 
 export interface WriteResult {
   ok: boolean;
@@ -84,7 +84,7 @@ export async function deleteLocalRecord(
         "local dev server is running — it caches this store in memory and would overwrite the change. Stop it (or mutate via the RPC playground) and retry.",
     };
   }
-  const bbDataRoot = resolve(projectPath, ".bb-data");
+  const bbDataRoot = resolve(projectPath, localDataDirName(projectPath));
   const dir = resolve(bbDataRoot, blockFullId);
   if (!dir.startsWith(bbDataRoot + sep)) return { ok: false, message: "invalid block id" };
   const filePath = join(dir, "data.json");

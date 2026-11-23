@@ -138,7 +138,8 @@ export function DataBrowser({
   const isCloud = query.env === "cloud";
   const isCognito = isCloud && blockType.startsWith("Auth");
   const canWrite = isCloud ? unlocked : true;
-  const isTable = blockType === "DistributedTable";
+  // A keyed table: 0.x DistributedTable, or a 1.0 KVStore with a `key` option.
+  const isTable = blockType === "DistributedTable" || keySchema !== undefined;
   const title = isCloud ? "Cloud data · read-only unless unlocked" : "Local data";
 
   async function saveRecord(item: Record<string, unknown>) {

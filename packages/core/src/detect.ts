@@ -10,16 +10,26 @@ import type {
   EnvironmentStatus,
   LocalEnvStatus,
 } from "./types.js";
+import {
+  apiPath,
+  configDirName,
+  localDataDirName,
+  packageDevPort,
+  sandboxDirName,
+} from "./layout.js";
 
 const DEFAULT_LOCAL_PORT = 3000;
 const PROBE_TIMEOUT_MS = 1500;
 
 /**
- * The local dev server port is per project, not a constant: each project's
- * `aws-blocks/scripts/server.ts` passes its own `port:` (some projects use 3001
- * so its Vite client can own 3000). Read it rather than assuming.
+ * The local dev server port is per project, not a constant (some projects use
+ * 3001 so their Vite client can own 3000). A 1.0 app sets it in
+ * `package.json#blocks.dev.port`; a 0.x app passes `port:` in
+ * `aws-blocks/scripts/server.ts`. Read it rather than assuming.
  */
 export function resolveLocalPort(projectPath: string): number {
+  const fromPackage = packageDevPort(projectPath);
+  if (fromPackage !== null) return fromPackage;
   const scriptPath = join(projectPath, "aws-blocks", "scripts", "server.ts");
   if (!existsSync(scriptPath)) return DEFAULT_LOCAL_PORT;
   const match = /\bport\s*:\s*(\d{2,5})\b/.exec(readFileSync(scriptPath, "utf8"));
@@ -33,13 +43,19 @@ export function localBlocksUrl(projectPath: string): string {
   return `http://127.0.0.1:${resolveLocalPort(projectPath)}`;
 }
 
+/** The local JSON-RPC endpoint, on the path this project's version serves. */
+export function localRpcUrl(projectPath: string): string {
+  return `${localBlocksUrl(projectPath)}${apiPath(projectPath)}`;
+}
+
 /**
- * Deployed stack name candidates, mirroring @aws-blocks/core getStackName():
+ * Deployed stack name candidates, mirroring getStackName() in core:
  * production is `<stackId>-prod`; a sandbox is `<stackId>-<sandboxId>` where
- * the sandbox id persists in `.blocks-sandbox/sandbox-id.txt`. Prod first.
+ * the sandbox id persists in `sandbox-id.txt` of the per-deploy state folder
+ * (`.cdk-blocks-sandbox/` in 1.0, `.blocks-sandbox/` in 0.x). Prod first.
  */
 export function stackNameCandidates(projectPath: string): string[] {
-  const configPath = join(projectPath, ".blocks", "config.json");
+  const configPath = join(projectPath, configDirName(projectPath), "config.json");
   let stackId: string | null = null;
   if (existsSync(configPath)) {
     try {
@@ -54,7 +70,7 @@ export function stackNameCandidates(projectPath: string): string[] {
     stackId = JSON.parse(readFileSync(packagePath, "utf8")).name as string;
   }
   const candidates = [`${stackId}-prod`];
-  const sandboxIdPath = join(projectPath, ".blocks-sandbox", "sandbox-id.txt");
+  const sandboxIdPath = join(projectPath, sandboxDirName(projectPath), "sandbox-id.txt");
   if (existsSync(sandboxIdPath)) {
     const sandboxId = readFileSync(sandboxIdPath, "utf8").trim();
     if (sandboxId) candidates.push(`${stackId}-${sandboxId}`);
@@ -66,7 +82,7 @@ export async function detectLocal(
   projectPath: string,
   expectedNamespaces: string[] = [],
 ): Promise<LocalEnvStatus> {
-  const bbDataPresent = existsSync(join(projectPath, ".bb-data"));
+  const bbDataPresent = existsSync(join(projectPath, localDataDirName(projectPath)));
   const baseUrl = localBlocksUrl(projectPath);
   // Assigned on every path below — the try sets it from the probe, the catch
   // sets it false — so an initializer here would be dead.
@@ -78,7 +94,7 @@ export async function detectLocal(
     //   "Method not found: API 'x' not found. Available: api, admin"
     // That is the only identity signal the dev server offers — it cannot
     // confirm the project, but a mismatch proves it is a different one.
-    const response = await fetch(`${baseUrl}/aws-blocks/api`, {
+    const response = await fetch(`${baseUrl}${apiPath(projectPath)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

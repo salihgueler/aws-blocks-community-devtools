@@ -7,7 +7,7 @@ import {
   resolveBlockResources,
   type CloudClientOptions,
 } from "@aws-blocks-devtools/core";
-import { detectLocal } from "@aws-blocks-devtools/core";
+import { detectLocal, localDataDirName } from "@aws-blocks-devtools/core";
 import { keyFields, keyOf, validateRecord, ValidationError } from "./validate.js";
 import type { WriteResult } from "./writes.js";
 
@@ -113,7 +113,7 @@ export async function putLocalRecord(
     if (error instanceof ValidationError) return { ok: false, message: error.message };
     throw error;
   }
-  const bbDataRoot = resolve(projectPath, ".bb-data");
+  const bbDataRoot = resolve(projectPath, localDataDirName(projectPath));
   const dir = resolve(bbDataRoot, blockFullId);
   if (!dir.startsWith(bbDataRoot + sep)) return { ok: false, message: "invalid block id" };
   const filePath = join(dir, "data.json");

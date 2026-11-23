@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { backendDirName } from "./layout.js";
 
 /**
  * Resolves which Blocks project we are pointed at, with no flags required.
@@ -7,13 +8,13 @@ import { dirname, join, resolve } from "node:path";
  * The MCP server is spawned by an agent, so it cannot rely on being passed a
  * path: it inherits only a working directory. Resolution order:
  *   1. BLOCKS_CONSOLE_PROJECT (explicit override, used by the CLI)
- *   2. walk up from the start directory looking for aws-blocks/index.ts,
- *      the way git finds .git — so any subdirectory of a project works
+ *   2. walk up from the start directory looking for cdk-blocks/index.ts
+ *      (AWS CDK Blocks 1.0) or aws-blocks/index.ts (0.x), the way git finds
+ *      .git — so any subdirectory of a project works
  *   3. one level down, for monorepos where the agent sits at the repo root
  *      and the Blocks app lives in a subdirectory
  */
 
-const MARKER = join("aws-blocks", "index.ts");
 const MAX_WALK_UP = 8;
 const CHILD_SCAN_LIMIT = 40;
 
@@ -61,7 +62,7 @@ export function resolveProject(startDir: string = process.cwd()): ProjectResolut
 }
 
 export function isBlocksProject(path: string): boolean {
-  return existsSync(join(path, MARKER));
+  return backendDirName(path) !== null;
 }
 
 /** Shallow scan for child projects; all candidates are returned. */

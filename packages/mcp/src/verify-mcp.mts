@@ -32,7 +32,9 @@ console.log("project:", project.project.name, "| scope:", project.project.scope?
 console.log("blocks:", project.blocks.length, "| writesEnabled:", project.writesEnabled);
 console.log("local up:", project.environments.local.serverUp, "| cloud stack:", project.environments.cloud.stackName, project.environments.cloud.stackFound);
 
-const dataBlock = project.blocks.find((b: { type: string }) => b.type === "DistributedTable");
+const dataBlock = project.blocks.find(
+  (b: { type: string }) => b.type === "DistributedTable" || b.type === "KVStore",
+);
 if (dataBlock) {
   const page = JSON.parse(
     firstText(await client.callTool({ name: "blocks_read", arguments: { blockId: dataBlock.fullId } })),
