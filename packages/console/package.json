@@ -1,6 +1,6 @@
 {
   "name": "aws-blocks-console",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "description": "Local-first admin console for AWS CDK Blocks projects: browse your Building Blocks, read local and deployed data, and call your API — in a browser, with no setup.",
   "keywords": [
