@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { discoverBlocks } from "@aws-blocks-devtools/core";
-import { detectEnvironment, localBlocksUrl } from "@aws-blocks-devtools/core";
+import { detectEnvironment, localRpcUrl } from "@aws-blocks-devtools/core";
 import { readBlockData } from "@aws-blocks-devtools/core";
 import { readCloudBlockData } from "@aws-blocks-devtools/core";
 import { proxyRpc } from "@aws-blocks-devtools/core";
@@ -40,11 +40,11 @@ function requireProject(explicit?: string): string {
   }
   if (resolution.reason === "bad-override") {
     throw new Error(
-      "BLOCKS_CONSOLE_PROJECT does not point at a Blocks project (no aws-blocks/index.ts)",
+      "BLOCKS_CONSOLE_PROJECT does not point at a Blocks project (no cdk-blocks/index.ts or aws-blocks/index.ts)",
     );
   }
   throw new Error(
-    "No AWS CDK Blocks project found from the current directory. Run the agent from a project containing aws-blocks/index.ts, or pass project=<absolute path>.",
+    "No AWS CDK Blocks project found from the current directory. Run the agent from a project containing cdk-blocks/index.ts (or aws-blocks/index.ts for 0.x), or pass project=<absolute path>.",
   );
 }
 
@@ -86,7 +86,7 @@ export function createMcpServer(): McpServer {
         project: { path: projectPath, scope: inventory.scope, name: inventory.projectName },
         blocks: inventory.blocks,
         environments: {
-          local: { ...environment.local, rpcUrl: `${localBlocksUrl(projectPath)}/aws-blocks/api` },
+          local: { ...environment.local, rpcUrl: localRpcUrl(projectPath) },
           cloud: environment.cloud,
         },
         writesEnabled,
@@ -157,7 +157,7 @@ export function createMcpServer(): McpServer {
     },
     async ({ method, params, env, cookie, project }) => {
       const projectPath = requireProject(project);
-      let endpoint = `${localBlocksUrl(projectPath)}/aws-blocks/api`;
+      let endpoint = localRpcUrl(projectPath);
       if (env === "cloud") {
         const environment = await detectEnvironment(
           projectPath,

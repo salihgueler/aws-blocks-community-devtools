@@ -1,6 +1,6 @@
 import { Project, Node, SyntaxKind } from "ts-morph";
-import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
+import { backendDirName } from "./layout.js";
 import type {
   ApiMethod,
   BlockCategory,
@@ -17,12 +17,16 @@ import type {
  * telemetry-filtered — it exposes block type names and counts but not ids or
  * config. The `new <BlockType>(scope, "id", opts)` call sites are the only
  * complete source of truth, and they may be spread across multiple files
- * (factory helpers), so we scan every .ts file under aws-blocks/.
+ * (factory helpers), so we scan every .ts file under the backend folder
+ * (cdk-blocks/ in 1.0, aws-blocks/ in 0.x).
  */
 
 const BLOCK_CATEGORIES: Record<string, BlockCategory> = {
   ApiNamespace: "core",
   RawRoute: "core",
+  // 1.0 names first; the 0.x names stay so older apps still list fully.
+  Auth: "auth",
+  LegacyKVStore: "data",
   AuthBasic: "auth",
   AuthCognito: "auth",
   AuthOIDC: "auth",
@@ -51,10 +55,13 @@ const BLOCK_CATEGORIES: Record<string, BlockCategory> = {
 const CONFIG_PREVIEW_MAX = 800;
 
 export function discoverBlocks(projectPath: string): ProjectInventory {
-  const backendDir = join(projectPath, "aws-blocks");
-  if (!existsSync(backendDir)) {
-    throw new Error(`Not an AWS CDK Blocks project: ${backendDir} does not exist`);
+  const backendName = backendDirName(projectPath);
+  if (backendName === null) {
+    throw new Error(
+      `Not an AWS CDK Blocks project: no cdk-blocks/index.ts or aws-blocks/index.ts in ${projectPath}`,
+    );
   }
+  const backendDir = join(projectPath, backendName);
 
   const project = new Project({
     // Parse only; the target project may not even typecheck right now.
@@ -104,8 +111,10 @@ export function discoverBlocks(projectPath: string): ProjectInventory {
         ...(typeName === "ApiNamespace"
           ? { methods: extractApiMethods(args[2]) }
           : {}),
-        ...(typeName === "DistributedTable"
-          ? { keySchema: extractKeySchema(args[2]) }
+        // In 1.0 KVStore took over DistributedTable's `key` option; a 0.x
+        // KVStore has none, so extractKeySchema returns undefined for it.
+        ...(typeName === "DistributedTable" || typeName === "KVStore"
+          ? keySchemaField(extractKeySchema(args[2]))
           : {}),
       });
     }
@@ -140,8 +149,14 @@ function extractConfigPreview(arg: Node | undefined): string | null {
     : text;
 }
 
+/** Spread helper: omit `keySchema` entirely when there is none. */
+function keySchemaField(keySchema: KeySchema | undefined): { keySchema?: KeySchema } {
+  return keySchema ? { keySchema } : {};
+}
+
 /**
- * DistributedTable config: `{ key: { partitionKey: "pk", sortKey: "sk" } }`.
+ * Keyed table config (1.0 KVStore, 0.x DistributedTable):
+ * `{ key: { partitionKey: "pk", sortKey: "sk" } }`.
  * Read the string literals off the nested `key` object.
  */
 function extractKeySchema(arg: Node | undefined): KeySchema | undefined {

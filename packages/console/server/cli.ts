@@ -180,7 +180,7 @@ function reportUnresolved(resolution: Extract<ProjectResolution, { ok: false }>)
     return;
   }
   console.error(
-    "No AWS CDK Blocks project found here (looked for aws-blocks/index.ts in this directory and its parents).",
+    "No AWS CDK Blocks project found here (looked for cdk-blocks/index.ts or aws-blocks/index.ts in this directory and its parents).",
   );
   console.error("Run this from inside a Blocks project, or pass --project <path>.");
 }

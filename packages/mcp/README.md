@@ -31,7 +31,7 @@ No project path is baked in. The server resolves the project from the agent's wo
 | Tool | What it does |
 | --- | --- |
 | `blocks_project` | The project's scope, every block with its type and key schema, its API methods, and whether a deployed stack was found. Start here — the other tools take ids from it. |
-| `blocks_read` | Records from one block's store, from local `.bb-data` or the deployed DynamoDB table / Cognito pool. |
+| `blocks_read` | Records from one block's store, from local mock data (`.cdk-blocks/local/data/`, or `.bb-data/` in 0.x) or the deployed DynamoDB table / Cognito pool. |
 | `blocks_rpc` | Calls an API method against the local dev server or the deployed endpoint. |
 
 An unknown block id fails loudly with the list of real ids rather than returning an empty result, so an agent corrects itself instead of concluding your table is empty.

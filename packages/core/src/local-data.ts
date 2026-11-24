@@ -2,9 +2,11 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join, resolve, sep } from "node:path";
 import type { BlockDataPage, DataRecord } from "./types.js";
 import { SECRET_KEY_PATTERN, looksSecret, orderStores, redactValue } from "./redact.js";
+import { localDataDirName } from "./layout.js";
 
 /**
- * Reads a block's local mock state from .bb-data/<fullId>/.
+ * Reads a block's local mock state from <data root>/<fullId>/, where the data
+ * root is `.cdk-blocks/local/data/` (1.0) or `.bb-data/` (0.x).
  *
  * Observed formats (verified against a real project):
  * - DistributedTable/KVStore `data.json`: array of [serializedKey, item] pairs
@@ -32,8 +34,9 @@ export function readBlockData(
     stores: [],
     activeStore: null,
   };
-  const bbDataRoot = resolve(projectPath, ".bb-data");
-  // fullId comes from the URL — refuse anything that could escape .bb-data/.
+  const dataDir = localDataDirName(projectPath);
+  const bbDataRoot = resolve(projectPath, dataDir);
+  // fullId comes from the URL — refuse anything that could escape the data root.
   const exact = resolve(bbDataRoot, fullId);
   if (!exact.startsWith(bbDataRoot + sep)) {
     return { ...empty, error: "invalid block id" };
@@ -57,7 +60,7 @@ export function readBlockData(
   const selected =
     store && empty.stores.includes(store) ? store : empty.stores[0];
   if (!selected) {
-    return { ...empty, error: `no local data at .bb-data/${fullId}` };
+    return { ...empty, error: `no local data at ${dataDir}/${fullId}` };
   }
   const dir = resolve(bbDataRoot, selected);
   if (!dir.startsWith(bbDataRoot + sep)) {
@@ -96,7 +99,7 @@ export function readBlockData(
   });
   return {
     fullId,
-    source: `.bb-data/${basename(dir)}/${preferred}`,
+    source: `${dataDir}/${basename(dir)}/${preferred}`,
     records,
     totalRecords: all.length,
     redacted: redactedAny,

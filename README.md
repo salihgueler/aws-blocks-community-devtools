@@ -4,7 +4,7 @@ Community developer tools for [AWS CDK Blocks](https://www.npmjs.com/package/@aw
 
 | Tool | What it is |
 | --- | --- |
-| [`aws-blocks-console`](https://www.npmjs.com/package/aws-blocks-console) ([source](packages/console)) | A local-first admin console in your browser. Browse your Building Blocks, read local `.bb-data` or deployed DynamoDB/Cognito data, call your API, and open deployed AWS resources. |
+| [`aws-blocks-console`](https://www.npmjs.com/package/aws-blocks-console) ([source](packages/console)) | A local-first admin console in your browser. Browse your Building Blocks, read local mock data or deployed DynamoDB/Cognito data, call your API, and open deployed AWS resources. |
 | [`aws-blocks-mcp`](https://www.npmjs.com/package/aws-blocks-mcp) ([source](packages/mcp)) | An MCP server, so an AI agent can do the same things over stdio. Read-only unless you opt in. |
 | [`aws-blocks-development`](skills/aws-blocks-development) | An agent skill covering every Building Block, the API model, scaffolding and deployment. Not published to npm — copy it into your project's skills directory. |
 

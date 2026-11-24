@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import { resolve } from "node:path";
 import { discoverBlocks } from "@aws-blocks-devtools/core";
-import { detectEnvironment, localBlocksUrl } from "@aws-blocks-devtools/core";
+import { detectEnvironment, localRpcUrl } from "@aws-blocks-devtools/core";
 import { readBlockData } from "@aws-blocks-devtools/core";
 import { readCloudBlockData } from "@aws-blocks-devtools/core";
 import { proxyRpc } from "@aws-blocks-devtools/core";
@@ -68,7 +68,7 @@ async function routePost(url: URL, body: string) {
       }
       // Cloud mode targets the deployed ApiUrl; local uses the proxy default.
       // Local endpoint uses the project's own dev-server port, not a constant.
-      let endpoint = `${localBlocksUrl(projectPath)}/aws-blocks/api`;
+      let endpoint = localRpcUrl(projectPath);
       if (parsed.env === "cloud") {
         const env = await detectEnvironment(projectPath, profile, region);
         if (!env.cloud.apiUrl) {
